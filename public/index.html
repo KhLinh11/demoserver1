@@ -343,20 +343,20 @@
       var mascot = document.getElementById('floating-mascot-container');
       if (!d) return;
 
-      var isVisible = (d.style.display === 'flex') || (!d.classList.contains('hidden') && d.style.display !== 'none');
-      var shouldOpen = (typeof forceOpen === 'boolean') ? forceOpen : !isVisible;
+      var isClosed = d.classList.contains('translate-x-full');
+      var shouldOpen = (typeof forceOpen === 'boolean') ? forceOpen : isClosed;
 
       if (shouldOpen) {
-        d.classList.remove('hidden', 'translate-x-full');
-        d.classList.add('flex');
-        d.style.display = 'flex';
+        d.classList.remove('translate-x-full');
+        if (window.innerWidth >= 1024) {
+          document.body.style.marginRight = '420px';
+        }
         if (mascot) mascot.classList.add('opacity-0', 'pointer-events-none');
         var box = document.getElementById('agent-chat-box');
         if (box) setTimeout(function() { box.scrollTop = box.scrollHeight; }, 100);
       } else {
-        d.classList.add('hidden');
-        d.classList.remove('flex');
-        d.style.display = 'none';
+        d.classList.add('translate-x-full');
+        document.body.style.marginRight = '0px';
         if (mascot) mascot.classList.remove('opacity-0', 'pointer-events-none');
       }
 
@@ -365,20 +365,17 @@
           window.initOrUpdateCharts();
         }
         window.dispatchEvent(new Event('resize'));
-      }, 150);
+      }, 300);
     };
 
+    var toggleAgentDrawer = window.toggleAgentDrawer;
+
     window.openAiAssistant = function() {
-      var hero = document.getElementById('view-hero');
-      var ws = document.getElementById('view-workspace');
-      if (hero && !hero.classList.contains('hidden')) {
-        hero.classList.add('hidden');
-        if (ws) ws.classList.remove('hidden');
-        if (typeof window.switchStep === 'function') {
-          window.switchStep(window.currentActiveStepNum || 1);
-        }
-      }
       window.toggleAgentDrawer(true);
+    };
+
+    window.openAiAssistantFromHero = function() {
+      window.openAiAssistant();
     };
 
     window.formatVND = function(amount) {
@@ -1601,7 +1598,7 @@
     };
   </script>
 </head>
-<body class="selection:bg-[#ECD8F2] selection:text-[#8F60BF]">
+<body class="selection:bg-[#ECD8F2] selection:text-[#8F60BF]" style="transition: margin-right 0.3s ease;">
 
   <!-- ======================================================== -->
   <!-- MÀN HÌNH BÌA HERO PHONG CÁCH 3D FLOATING GEOMETRIC CHUẨN PALETTE -->
@@ -3081,62 +3078,6 @@
 
       </main>
 
-      <!-- DRAWER COPILOT DOCKABLE PANEL (TỰ ĐỘNG CO GIÃN KHUNG NỘI DUNG CHÍNH, KHÔNG CHE KHUẤT DỮ LIỆU) -->
-      <aside id="agent-drawer" class="hidden w-full md:w-[380px] lg:w-[420px] xl:w-[440px] bg-white border-l border-[#ECD8F2] p-5 flex-col justify-between flex-shrink-0 transition-all duration-300 z-20">
-        <div class="space-y-3 flex-1 flex flex-col overflow-hidden">
-          <div class="flex items-center justify-between pb-3 border-b border-[#ECD8F2]">
-            <div class="flex items-center space-x-2.5">
-              <div class="w-8 h-8 rounded-xl bg-[#FAF6FD] text-[#8F60BF] border border-[#BEB6F2] flex items-center justify-center font-bold text-xs shadow-2xs">
-                AI
-              </div>
-              <div>
-                <h3 class="text-xs font-bold text-[#1E1B2E]">Vitara Growth Copilot</h3>
-                <span class="text-[9px] text-[#079DD9] font-semibold font-mono">Enterprise Active &bull; DuckDB</span>
-              </div>
-            </div>
-            <button onclick="window.toggleAgentDrawer(false)" class="w-7 h-7 rounded-lg bg-[#FAF6FD] border border-[#ECD8F2] text-[#5C5570] hover:text-[#D93848] flex items-center justify-center text-xs transition cursor-pointer" title="Đóng ngăn trợ lý AI">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <div class="flex flex-wrap gap-1.5 text-xs">
-            <button onclick="sendQuickAgent('Vì sao Kênh Flash Sale bị STOP?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
-              🔍 Vì sao Flash Sale STOP?
-            </button>
-            <button onclick="sendQuickAgent('Kênh nào có doanh thu cao nhất?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
-              📊 Kênh nào doanh thu cao nhất?
-            </button>
-            <button onclick="sendQuickAgent('Tỷ lệ hoàn hàng của các kênh như thế nào?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
-              🚨 Tỷ lệ hoàn hàng các kênh?
-            </button>
-            <button onclick="sendQuickAgent('Top 5 showroom có lợi nhuận cao nhất?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
-              🏢 Top 5 Showroom lãi cao?
-            </button>
-            <button onclick="sendQuickAgent('Kế hoạch điều chuyển ngân sách tối ưu')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
-              💰 Tối ưu ngân sách
-            </button>
-          </div>
-
-          <div id="agent-chat-box" class="flex-1 overflow-y-auto custom-scrollbar p-3 rounded-xl bg-[#FAF8FC] space-y-2.5 text-xs">
-            <div class="flex items-start space-x-2">
-              <div class="w-5 h-5 rounded-full bg-[#8F60BF] text-white flex items-center justify-center font-bold text-[9px] flex-shrink-0">
-                V
-              </div>
-              <div class="bg-white p-2.5 rounded-xl rounded-tl-none border border-[#EFE8F6] text-[#1E1B2E] leading-relaxed shadow-xs">
-                Xin chào! Tôi là Trợ lý Cố vấn Tăng trưởng Vitara AI. Bạn cần tôi bóc tách P&L kênh nào hay phân tích lý do điều chuyển ngân sách?
-              </div>
-            </div>
-          </div>
-
-          <form onsubmit="handleAgentChat(event)" class="flex items-center space-x-2 pt-2">
-            <input type="text" id="agent-chat-input" placeholder="Hỏi AI về chiến dịch hoặc ngân sách..." class="flex-1 bg-[#FAF8FC] border border-[#ECD8F2] rounded-lg px-3 py-1.5 text-xs focus:outline-none">
-            <button type="submit" class="px-3 py-1.5 bg-[#8F60BF] hover:bg-[#7b4fa8] text-white rounded-lg text-xs font-semibold shadow-xs">
-              Gửi
-            </button>
-          </form>
-        </div>
-      </aside>
-
     </div>
   </div>
 
@@ -3969,11 +3910,7 @@
       );
     }
 
-    function toggleAgentDrawer(forceOpen) {
-      if (typeof window.toggleAgentDrawer === 'function') {
-        window.toggleAgentDrawer(forceOpen);
-      }
-    }
+
 
     function handleAgentChat(e) {
       e.preventDefault();
@@ -4879,6 +4816,62 @@
       }
     });
   </script>
+
+  <!-- DRAWER COPILOT FIXED PANEL (TỰ ĐỘNG THU NHỎ NỘI DUNG TOÀN TRANG, KHÔNG CHE KHUẤT DỮ LIỆU) -->
+  <aside id="agent-drawer" class="fixed top-0 right-0 h-screen w-full sm:w-[420px] bg-white border-l border-[#ECD8F2] p-5 flex flex-col justify-between transition-transform duration-300 z-50 translate-x-full shadow-2xl">
+    <div class="space-y-3 flex-1 flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between pb-3 border-b border-[#ECD8F2]">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-xl bg-[#FAF6FD] text-[#8F60BF] border border-[#BEB6F2] flex items-center justify-center font-bold text-xs shadow-2xs">
+            AI
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-[#1E1B2E]">Vitara Growth Copilot</h3>
+            <span class="text-[9px] text-[#079DD9] font-semibold font-mono">Enterprise Active &bull; DuckDB</span>
+          </div>
+        </div>
+        <button onclick="window.toggleAgentDrawer(false)" class="w-7 h-7 rounded-lg bg-[#FAF6FD] border border-[#ECD8F2] text-[#5C5570] hover:text-[#D93848] flex items-center justify-center text-xs transition cursor-pointer" title="Đóng ngăn trợ lý AI">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="flex flex-wrap gap-1.5 text-xs">
+        <button onclick="sendQuickAgent('Vì sao Kênh Flash Sale bị STOP?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
+          🔍 Vì sao Flash Sale STOP?
+        </button>
+        <button onclick="sendQuickAgent('Kênh nào có doanh thu cao nhất?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
+          📊 Kênh nào doanh thu cao nhất?
+        </button>
+        <button onclick="sendQuickAgent('Tỷ lệ hoàn hàng của các kênh như thế nào?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
+          🚨 Tỷ lệ hoàn hàng các kênh?
+        </button>
+        <button onclick="sendQuickAgent('Top 5 showroom có lợi nhuận cao nhất?')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
+          🏢 Top 5 Showroom lãi cao?
+        </button>
+        <button onclick="sendQuickAgent('Kế hoạch điều chuyển ngân sách tối ưu')" class="px-2.5 py-1 rounded-lg bg-[#FAF8FC] hover:bg-[#FAF6FD] text-[#5C5570] hover:text-[#8F60BF] text-[11px] font-medium border border-[#ECD8F2] transition cursor-pointer">
+          💰 Tối ưu ngân sách
+        </button>
+      </div>
+
+      <div id="agent-chat-box" class="flex-1 overflow-y-auto custom-scrollbar p-3 rounded-xl bg-[#FAF8FC] space-y-2.5 text-xs">
+        <div class="flex items-start space-x-2">
+          <div class="w-5 h-5 rounded-full bg-[#8F60BF] text-white flex items-center justify-center font-bold text-[9px] flex-shrink-0">
+            V
+          </div>
+          <div class="bg-white p-2.5 rounded-xl rounded-tl-none border border-[#EFE8F6] text-[#1E1B2E] leading-relaxed shadow-xs">
+            Xin chào! Tôi là Trợ lý Cố vấn Tăng trưởng Vitara AI. Bạn cần tôi bóc tách P&amp;L kênh nào hay phân tích lý do điều chuyển ngân sách?
+          </div>
+        </div>
+      </div>
+
+      <form onsubmit="handleAgentChat(event)" class="flex items-center space-x-2 pt-2">
+        <input type="text" id="agent-chat-input" placeholder="Hỏi AI về chiến dịch hoặc ngân sách..." class="flex-1 bg-[#FAF8FC] border border-[#ECD8F2] rounded-lg px-3 py-1.5 text-xs focus:outline-none">
+        <button type="submit" class="px-3 py-1.5 bg-[#8F60BF] hover:bg-[#7b4fa8] text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer">
+          Gửi
+        </button>
+      </form>
+    </div>
+  </aside>
 
   <!-- FLOATING MASCOT & BOTTOM-RIGHT QUICK ACTIONS (PURPLE & CYAN HERO HARMONY) -->
   <div id="floating-mascot-container" class="fixed bottom-6 right-6 z-40 flex flex-col items-end space-y-2 select-none transition-all duration-300">
