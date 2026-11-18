@@ -1,0 +1,19 @@
+{
+  "name": "demovercel",
+  "version": "1.0.0",
+  "description": "Vitara AI - Enterprise Campaign Attribution & P&L Decision Platform",
+  "main": "index.html",
+  "scripts": {
+    "build": "mkdir -p public && cp index.html sample_data.csv public/ 2>/dev/null || true"
+  },
+  "keywords": [
+    "vitara",
+    "attribution",
+    "pnl",
+    "hitl",
+    "retail-analytics",
+    "decision-intelligence"
+  ],
+  "author": "Vitara AI Team",
+  "license": "MIT"
+}
