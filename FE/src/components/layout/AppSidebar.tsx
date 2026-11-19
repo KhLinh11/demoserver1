@@ -16,6 +16,7 @@ interface AppSidebarProps {
   currentStep: number;
   onSelectStep: (step: number) => void;
   onOpenCopilot: () => void;
+  onResetSession?: () => void;
   companyName: string;
   userName?: string;
   isBackendOnline?: boolean;
@@ -25,6 +26,7 @@ export function AppSidebar({
   currentStep,
   onSelectStep,
   onOpenCopilot,
+  onResetSession,
   companyName,
   userName = "Nguyễn Hữu Xuân",
   isBackendOnline = true,
@@ -132,6 +134,21 @@ export function AppSidebar({
               </button>
             );
           })}
+
+          {onResetSession && (
+            <button
+              type="button"
+              onClick={onResetSession}
+              className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-left cursor-pointer text-[#D93848] hover:bg-[#FDEEED] hover:shadow-2xs mt-2 border border-[#D93848]/20"
+              title="Xóa thao tác luồng hiện tại và trở về Bước 1: Tải file"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0 text-[#D93848]">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              <span className="truncate">Làm Mới Phiên</span>
+            </button>
+          )}
         </nav>
       </div>
 

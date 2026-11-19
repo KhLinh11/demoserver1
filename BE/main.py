@@ -519,6 +519,17 @@ def get_latest_executive():
     return latest_step5_cache or {"status": "empty"}
 
 
+@app.post("/api/session/reset", tags=["Phiên làm việc"])
+def reset_session():
+    """Xóa toàn bộ cache dữ liệu và giải phóng phiên làm việc."""
+    global latest_cleansing_cache, latest_diagnosis_cache, latest_step4_cache, latest_step5_cache
+    latest_cleansing_cache.clear()
+    latest_diagnosis_cache.clear()
+    latest_step4_cache.clear()
+    latest_step5_cache.clear()
+    return {"status": "success", "message": "Đã làm mới phiên và xóa toàn bộ dữ liệu bộ nhớ đệm"}
+
+
 # Phục vụ favicon trực tiếp, tránh lỗi 404 trên trình duyệt
 @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
 def favicon():

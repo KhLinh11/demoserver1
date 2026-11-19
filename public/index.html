@@ -330,11 +330,164 @@
     };
 
     window.clearAppStateAndReset = function() {
-      if (confirm("Bạn có chắc chắn muốn làm mới toàn bộ và xoá dữ liệu phiên làm việc hiện tại?")) {
+      // 1. Gửi request làm mới cache phiên làm việc phía Backend FastAPI
+      try {
+        fetch('/api/session/reset', { method: 'POST' }).catch(function(err) {
+          console.warn('[Vitara] Lỗi gọi API reset phiên:', err);
+        });
+      } catch(e) {}
+
+      // 2. Xóa sạch dữ liệu lưu trữ phía Client (LocalStorage, SessionStorage)
+      try {
+        localStorage.removeItem('vitara_app_state');
+        localStorage.removeItem('vitara_fe_state');
+        sessionStorage.clear();
+      } catch(e) {}
+
+      // 3. Xóa sạch toàn bộ biến dữ liệu luồng hiện tại trong bộ nhớ JavaScript
+      window.uploadedMasterDataset = null;
+      window.masterCleanedDataset = null;
+      window.originalRawDatasetBackup = null;
+      window.currentEnterpriseRowCount = 0;
+      window.lastLoadedFileName = "";
+      window.lastLoadedFileSize = 0;
+      window.lastLoadedDroppedDups = 0;
+      window.currentBackendRunId = null;
+      window.isCleansingApproved = false;
+      window.currentAuditTopic = 'all';
+      window.currentCleansingPlanData = null;
+      window.currentDiagnosisData = null;
+      window.currentStep3TableRows = null;
+      window.currentStep3TableCols = null;
+      window.currentStep4Data = null;
+      window.currentStep5Data = null;
+      window.lastSelectedFileObj = null;
+      window.currentUploadedFile = null;
+
+      // 4. Khôi phục trạng thái khung tải file Bước 1
+      var fileInput = document.getElementById('input-file');
+      if (fileInput) fileInput.value = '';
+
+      var dropZone = document.getElementById('file-dropzone');
+      if (dropZone) {
+        dropZone.className = "border-2 border-dashed border-[#BEB6F2] hover:border-[#8F60BF] bg-[#FAF6FD] hover:bg-[#FAF6FD]/80 rounded-2xl p-6 text-center cursor-pointer transition block relative select-none";
+      }
+      var dropContent = document.getElementById('dropzone-default-content');
+      if (dropContent) dropContent.classList.remove('hidden');
+
+      var chosenEl = document.getElementById('file-chosen-name');
+      if (chosenEl) {
+        chosenEl.innerHTML = '';
+        chosenEl.classList.add('hidden');
+      }
+
+      var errBanner = document.getElementById('upload-status-banner-error');
+      if (errBanner) errBanner.classList.add('hidden');
+
+      var warnBanner = document.getElementById('step1-validation-warning');
+      if (warnBanner) warnBanner.classList.add('hidden');
+
+      // 5. Khôi phục giao diện Bước 2: Chuẩn hoá dữ liệu
+      var pill = document.getElementById('cleansing-status-pill');
+      if (pill) {
+        pill.className = "text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-[#FAF6FD] text-[#8F60BF] border border-[#ECD8F2] self-start sm:self-auto flex items-center space-x-1.5";
+        pill.innerHTML = '<i class="fa-solid fa-clock-rotate-left text-[11px]"></i><span id="cleansing-status-pill-text">CHỜ DỮ LIỆU</span>';
+      }
+      var bar = document.getElementById('scan-progress-bar');
+      if (bar) bar.style.width = '0%';
+      var pct = document.getElementById('scan-pct-text');
+      if (pct) pct.textContent = '0%';
+      var scanLabel = document.getElementById('scan-status-label');
+      if (scanLabel) scanLabel.textContent = 'AI Scanner: Đang chờ tải tệp dữ liệu giao dịch...';
+      var scanBody = document.getElementById('clean-table-preview-tbody');
+      if (scanBody) scanBody.innerHTML = '';
+      var cleanedBody = document.getElementById('cleaned-data-preview-tbody');
+      if (cleanedBody) cleanedBody.innerHTML = '';
+      var statPreserved = document.getElementById('stat-preserved-records');
+      if (statPreserved) statPreserved.textContent = '0 / 0';
+      var statMissing = document.getElementById('stat-missing-records');
+      if (statMissing) statMissing.textContent = '0 bản ghi';
+      var statVirtual = document.getElementById('stat-virtual-rev');
+      if (statVirtual) statVirtual.textContent = '0.00M ₫';
+      var instructionInp = document.getElementById('step2-custom-instruction-input');
+      if (instructionInp) instructionInp.value = '';
+
+      // 6. Khôi phục giao diện Bước 3: Phân tích & Chẩn đoán
+      var step3Md = document.getElementById('step3-markdown-content');
+      if (step3Md) {
+        step3Md.innerHTML = '<div class="p-8 text-center text-[#5C5570] text-sm"><i class="fa-solid fa-file-circle-question text-3xl text-[#BEB6F2] mb-3 block"></i>Chưa có báo cáo chẩn đoán. Vui lòng tải dữ liệu tại Bước 1 và phê duyệt làm sạch tại Bước 2.</div>';
+      }
+      var step3Sub = document.getElementById('step3-dataset-subtitle');
+      if (step3Sub) step3Sub.textContent = '';
+      var step3Title = document.getElementById('step3-dataset-title');
+      if (step3Title) step3Title.textContent = 'Báo Cáo Phân Tích Dữ Liệu & Chẩn Đoán Rủi Ro AI';
+      var step3TableBody = document.getElementById('step3-table-body');
+      if (step3TableBody) step3TableBody.innerHTML = '';
+      var step3TableHeader = document.getElementById('step3-table-header');
+      if (step3TableHeader) step3TableHeader.innerHTML = '';
+
+      // 7. Khôi phục giao diện Bước 4: Nguyên nhân & Đề xuất
+      var step4Sub = document.getElementById('step4-dataset-subtitle');
+      if (step4Sub) step4Sub.textContent = '';
+      var step4RootCauses = document.getElementById('step4-root-causes-container');
+      if (step4RootCauses) step4RootCauses.innerHTML = '';
+      var step4Whys = document.getElementById('step4-5whys-container');
+      if (step4Whys) step4Whys.innerHTML = '';
+      var step4RankBody = document.getElementById('step4-rank-shift-body');
+      if (step4RankBody) step4RankBody.innerHTML = '';
+
+      // 8. Khôi phục giao diện Bước 5: Báo cáo & Tổng kết
+      var step5Sub = document.getElementById('step5-dataset-subtitle');
+      if (step5Sub) step5Sub.textContent = '';
+      var step5Kpis = document.getElementById('step5-kpis-container');
+      if (step5Kpis) step5Kpis.innerHTML = '';
+      var step5Charts = document.getElementById('step5-charts-container');
+      if (step5Charts) step5Charts.innerHTML = '';
+      var step5Actions = document.getElementById('step5-actions-container');
+      if (step5Actions) step5Actions.innerHTML = '';
+      var step5Eval = document.getElementById('step5-evaluation-tbody');
+      if (step5Eval) step5Eval.innerHTML = '';
+      var step5Roadmap = document.getElementById('step5-roadmap-container');
+      if (step5Roadmap) step5Roadmap.innerHTML = '';
+      var pnlBody = document.getElementById('pnl-table-body');
+      if (pnlBody) pnlBody.innerHTML = '';
+
+      if (window.chartsObj) {
         try {
-          localStorage.removeItem('vitara_app_state');
+          Object.keys(window.chartsObj).forEach(function(k) {
+            if (window.chartsObj[k] && typeof window.chartsObj[k].destroy === 'function') {
+              window.chartsObj[k].destroy();
+            }
+          });
+          window.chartsObj = {};
         } catch(e) {}
-        window.location.reload();
+      }
+
+      // 9. Đảm bảo hiển thị giao diện Workspace và ẩn Hero
+      var hero = document.getElementById('view-hero');
+      var ws = document.getElementById('view-workspace');
+      if (hero) hero.classList.add('hidden');
+      if (ws) ws.classList.remove('hidden');
+
+      // 10. Chuyển thẳng về Bước 1: Tải file
+      window.currentActiveStepNum = 1;
+      window.switchStep(1);
+
+      // 11. Cuộn trang mượt mà lên đầu khu vực tải file
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      var mainEl = document.querySelector('main');
+      if (mainEl) mainEl.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // 12. Thông báo nhanh xác nhận hoàn tất làm mới phiên
+      var toast = document.getElementById('sheets-notice-toast');
+      var toastText = document.getElementById('sheets-notice-text');
+      if (toast && toastText) {
+        toastText.innerHTML = "<strong>Đã làm mới phiên:</strong> Toàn bộ dữ liệu của luồng hiện tại đã được xóa sạch. Hệ thống đã trở về Bước 1 sẵn sàng nhận tệp mới.";
+        toast.className = "p-3.5 rounded-xl bg-emerald-50 border-2 border-emerald-500 text-xs text-emerald-900 flex items-center justify-between shadow-xs mb-4";
+        toast.classList.remove('hidden');
+        setTimeout(function() {
+          toast.classList.add('hidden');
+        }, 4000);
       }
     };
 

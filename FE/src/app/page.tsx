@@ -366,6 +366,28 @@ export default function Home() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
+  // Session Reset: Xóa toàn bộ dữ liệu luồng hiện tại và trở về Bước 1
+  const handleResetSession = () => {
+    if (backendOnline) {
+      fetch("/api/session/reset", { method: "POST" }).catch(() => {});
+    }
+    try {
+      localStorage.removeItem("vitara_fe_state");
+      localStorage.removeItem("vitara_app_state");
+      sessionStorage.clear();
+    } catch {}
+    setRawCsvText("");
+    setOrders([]);
+    setPnl(null);
+    setChannels([]);
+    setHitl1Approved(false);
+    setCurrentRunId(null);
+    setStep4Data(null);
+    setStep5Data(null);
+    setCurrentStep(1);
+    document.getElementById("workflow-section")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F8F5] text-[#1E2E2A] flex flex-col justify-between selection:bg-[#34655F] selection:text-white">
       {/* 3D Hero Section */}
@@ -387,6 +409,7 @@ export default function Home() {
             setMobileMenuOpen(false);
           }}
           onOpenCopilot={() => setIsCopilotOpen(true)}
+          onResetSession={handleResetSession}
           companyName={companyName}
           isBackendOnline={backendOnline}
         />
