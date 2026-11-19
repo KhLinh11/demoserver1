@@ -744,6 +744,17 @@
               if (typeof window.renderDynamicStep2 === "function") {
                 window.renderDynamicStep2(data);
               }
+              // Tự động tải báo cáo chẩn đoán Bước 3 do AI phân tích
+              fetch("/api/diagnosis/latest")
+                .then(function(r) { return r.json(); })
+                .then(function(diag) {
+                  if (diag && (diag.markdown_report || diag.dataset_title)) {
+                    window.currentDiagnosisData = diag;
+                    if (typeof window.renderStep3Table === "function") {
+                      window.renderStep3Table();
+                    }
+                  }
+                }).catch(function() {});
             }
           })
           .catch(function(err) {
@@ -2421,25 +2432,80 @@
             </span>
           </div>
 
+          <!-- 3 THẺ KPI CHẨN ĐOÁN DÒNG TIỀN ĐỘNG -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="p-5 rounded-2xl bg-white border border-[#BEB6F2] panel-shadow">
-              <div class="text-xs font-bold text-[#5C5570] uppercase">Hoàn trả trễ ngoài 12 ngày</div>
+            <div class="p-5 rounded-2xl bg-white border border-[#BEB6F2] panel-shadow transition-all hover:shadow-md">
+              <div id="step3-card-1-title" class="text-xs font-bold text-[#5C5570] uppercase tracking-wider flex items-center space-x-1.5">
+                <i class="fa-solid fa-chart-line text-[#8F60BF]"></i>
+                <span id="step3-card-ret-late-label">Hoàn trả trễ ngoài 12 ngày</span>
+              </div>
               <div id="step3-card-ret-late" class="text-2xl sm:text-3xl font-extrabold font-mono text-[#8F60BF] mt-1.5">72.57M ₫</div>
               <div id="step3-card-ret-late-sub" class="text-xs text-[#5C5570] mt-1">64.3% giá trị hoàn dồn sau ngày chốt sổ</div>
             </div>
-            <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow">
-              <div class="text-xs font-bold text-[#5C5570] uppercase">Xói mòn từ voucher</div>
+            <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow transition-all hover:shadow-md">
+              <div id="step3-card-2-title" class="text-xs font-bold text-[#5C5570] uppercase tracking-wider flex items-center space-x-1.5">
+                <i class="fa-solid fa-ticket text-[#8F60BF]"></i>
+                <span id="step3-card-voucher-label">Xói mòn từ voucher</span>
+              </div>
               <div id="step3-card-voucher" class="text-2xl sm:text-3xl font-extrabold font-mono text-[#8F60BF] mt-1.5">84.52M ₫</div>
               <div id="step3-card-voucher-sub" class="text-xs text-[#5C5570] mt-1">Chiết khấu thực tế vượt trần 26.2%</div>
             </div>
-            <div class="p-5 rounded-2xl bg-white border border-[#99D9F2] panel-shadow">
-              <div class="text-xs font-bold text-[#5C5570] uppercase">Hao hụt xử lý kho</div>
+            <div class="p-5 rounded-2xl bg-white border border-[#99D9F2] panel-shadow transition-all hover:shadow-md">
+              <div id="step3-card-3-title" class="text-xs font-bold text-[#5C5570] uppercase tracking-wider flex items-center space-x-1.5">
+                <i class="fa-solid fa-warehouse text-[#079DD9]"></i>
+                <span id="step3-card-damaged-label">Hao hụt xử lý kho</span>
+              </div>
               <div id="step3-card-damaged" class="text-2xl sm:text-3xl font-extrabold font-mono text-[#079DD9] mt-1.5">15.72M ₫</div>
               <div id="step3-card-damaged-sub" class="text-xs text-[#079DD9] font-semibold mt-1">Phí đóng gói lại 15k &amp; vỏ hộp</div>
             </div>
           </div>
 
-          <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-3">
+          <!-- THANH ĐIỀU HƯỚNG GÓC NHÌN & BÁO CÁO AI -->
+          <div class="p-4 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-center space-x-2.5">
+              <span class="px-2.5 py-1 rounded-lg bg-[#8F60BF] text-white text-[11px] font-black uppercase tracking-wider flex items-center space-x-1 shadow-2xs">
+                <i class="fa-solid fa-wand-magic-sparkles text-[#99D9F2]"></i>
+                <span>AI Auditor</span>
+              </span>
+              <span id="step3-dataset-title" class="text-xs sm:text-sm font-bold text-[#1E1B2E]">Báo Cáo Phân Tích Dữ Liệu &amp; Chẩn Đoán Rủi Ro AI</span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="flex items-center bg-white p-1 rounded-xl border border-[#ECD8F2] shadow-2xs">
+                <button type="button" id="step3-tab-ai" onclick="window.switchStep3View('ai')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#8F60BF] text-white shadow-2xs flex items-center space-x-1.5 cursor-pointer">
+                  <i class="fa-solid fa-file-waveform"></i>
+                  <span>Báo Cáo AI (Markdown)</span>
+                </button>
+                <button type="button" id="step3-tab-table" onclick="window.switchStep3View('table')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-[#5C5570] hover:text-[#8F60BF] flex items-center space-x-1.5 cursor-pointer">
+                  <i class="fa-solid fa-table"></i>
+                  <span>Bảng Số Liệu Chi Tiết</span>
+                </button>
+              </div>
+
+              <button type="button" id="btn-reanalyze-ai" onclick="window.triggerStep3AiDiagnosis(true)" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF8FC] border border-[#BEB6F2] text-[#8F60BF] text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer hover:border-[#8F60BF]" title="Yêu cầu Gemini AI phân tích lại tệp dữ liệu này">
+                <i class="fa-solid fa-rotate text-[#079DD9]" id="reanalyze-spinner"></i>
+                <span>AI Phân Tích Lại</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- GÓC NHÌN 1: BÁO CÁO PHÂN TÍCH CHUYÊN SÂU MARKDOWN TỪ GEMINI AI -->
+          <div id="step3-ai-report-view" class="p-6 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-4">
+            <div id="step3-markdown-loading" class="hidden p-8 text-center space-y-3">
+              <i class="fa-solid fa-circle-notch fa-spin text-2xl text-[#8F60BF]"></i>
+              <p class="text-xs font-bold text-[#8F60BF]">Gemini AI đang phân tích dữ liệu và lập bảng chẩn đoán chuyên sâu...</p>
+            </div>
+            <div id="step3-markdown-content" class="space-y-3 leading-relaxed">
+              <!-- Nội dung Markdown do AI sinh sẽ render tại đây -->
+            </div>
+          </div>
+
+          <!-- GÓC NHÌN 2: BẢNG SỐ LIỆU ĐỐI SOÁT TRỰC TIẾP -->
+          <div id="step3-table-view" class="hidden p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-[#ECD8F2]">
+              <span class="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider">Bảng dữ liệu thực tế theo tệp đã tải</span>
+              <span class="text-xs text-[#5C5570]" id="step3-table-subtitle">Hiển thị toàn bộ trường dữ liệu</span>
+            </div>
             <div class="overflow-x-auto border border-[#ECD8F2] rounded-xl">
               <table class="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead id="step3-table-head"></thead>
@@ -4257,175 +4323,226 @@
       window.renderStep3Table();
     };
 
-    window.renderStep3Table = function() {
-      var s3Body = document.getElementById('step3-table-body');
-      var s3Head = document.getElementById('step3-table-head');
-      if (!s3Body) return;
+    window.renderMarkdownToHtml = function(md) {
+      if (!md) return "<div class=\"p-6 text-center text-[#5C5570]\">Chưa có nội dung phân tích.</div>";
+      var lines = md.split("\n");
+      var html = [];
+      var inTable = false;
+      var tableHeaders = [];
+      var tableRows = [];
 
-      var analytics = window.computeDynamicAnalytics();
-
-      // Cập nhật động số liệu các thẻ tóm tắt trên Bước 3 theo dữ liệu thực tế
-      var elLate = document.getElementById('step3-card-ret-late');
-      var elVoucher = document.getElementById('step3-card-voucher');
-      var elDamaged = document.getElementById('step3-card-damaged');
-      if (elLate && analytics) elLate.textContent = (analytics.totalReturnsLate / 1000000).toFixed(2) + "M ₫";
-      if (elVoucher && analytics) elVoucher.textContent = (analytics.totalVoucher / 1000000).toFixed(2) + "M ₫";
-      if (elDamaged && analytics) elDamaged.textContent = (analytics.totalDamagedLoss / 1000000).toFixed(2) + "M ₫";
-
-      var topic = window.currentAuditTopic || 'all';
-
-      if (topic === 'leakage') {
-        if (s3Head) {
-          s3Head.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#EFE8F6]">' +
-            '<th class="p-3">Kênh / Chiến dịch</th>' +
-            '<th class="p-3 text-right">Doanh thu thô</th>' +
-            '<th class="p-3 text-right">Hoàn trong hạn (&le;12d)</th>' +
-            '<th class="p-3 text-right text-[#8F60BF]">Hoàn trễ muộn (13–30d)</th>' +
-            '<th class="p-3 text-right font-semibold text-[#1E1B2E]">Tổng giá trị hoàn</th>' +
-            '<th class="p-3 text-center">Tỷ lệ hoàn (%)</th>' +
-            '<th class="p-3 text-center">Đánh giá rủi ro</th>' +
-          '</tr>';
-        }
-        var dataLeakage = analytics.channels.map(function(ch) {
-          var rateStr = ch.returnRate.toFixed(1) + "%";
-          var status = ch.returnRate > 15 ? "BÁO ĐỘNG ĐỎ" : (ch.returnRate > 8 ? "KIỂM SOÁT TỐT" : "AN TOÀN");
-          var statusClass = ch.returnRate > 15 ? "text-[#8F60BF] bg-[#ECD8F2]" : "text-[#079DD9] bg-[#EBF6FC]";
-          return {
-            name: ch.name,
-            col2: ch.gross,
-            col3: ch.returnsInPeriod,
-            col4: ch.returnsLate,
-            col5: ch.returnsTotal,
-            rate: rateStr,
-            status: status,
-            statusClass: statusClass
-          };
+      function flushTable() {
+        if (!inTable) return;
+        var tHtml = "<div class=\"overflow-x-auto my-4 rounded-xl border border-[#ECD8F2] shadow-xs bg-white\">" +
+          "<table class=\"w-full text-xs text-left border-collapse\">" +
+          "<thead class=\"bg-[#FAF8FC] text-[#5C5570] font-bold border-b border-[#ECD8F2]\">";
+        tHtml += "<tr>";
+        tableHeaders.forEach(function(h) {
+          tHtml += "<th class=\"p-3 whitespace-nowrap\">" + h + "</th>";
         });
-        s3Body.innerHTML = dataLeakage.map(function(r) {
-          return '<tr class="hover:bg-[#FAF8FC] transition">' +
-            '<td class="p-3 font-semibold font-sans text-[#1E1B2E]">' + r.name + '</td>' +
-            '<td class="p-3 text-right text-[#1E1B2E]">' + window.formatVND(r.col2) + '</td>' +
-            '<td class="p-3 text-right text-[#5C5570]">' + window.formatVND(r.col3) + '</td>' +
-            '<td class="p-3 text-right font-semibold text-[#8F60BF]">+' + window.formatVND(r.col4) + '</td>' +
-            '<td class="p-3 text-right font-bold text-[#1E1B2E]">' + window.formatVND(r.col5) + '</td>' +
-            '<td class="p-3 text-center font-bold text-[#8F60BF]">' + r.rate + '</td>' +
-            '<td class="p-3 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + r.statusClass + '">' + r.status + '</span></td>' +
-          '</tr>';
-        }).join('');
-      } else if (topic === 'voucher') {
-        if (s3Head) {
-          s3Head.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#EFE8F6]">' +
-            '<th class="p-3">Kênh / Chiến dịch</th>' +
-            '<th class="p-3 text-right">Doanh thu thô</th>' +
-            '<th class="p-3 text-center">Số đơn gộp mã</th>' +
-            '<th class="p-3 text-right">Voucher chuẩn</th>' +
-            '<th class="p-3 text-right text-[#8F60BF]">Voucher vượt trần (+)</th>' +
-            '<th class="p-3 text-right font-semibold text-[#1E1B2E]">Tổng chiết khấu</th>' +
-            '<th class="p-3 text-center">Đánh giá rủi ro</th>' +
-          '</tr>';
-        }
-        var dataVoucher = analytics.channels.map(function(ch) {
-          var voucherRate = (ch.gross > 0 ? (ch.voucher / ch.gross * 100) : 0);
-          var status = voucherRate > 12 ? "VƯỢT TRẦN (" + voucherRate.toFixed(0) + "%)" : "ĐÚNG ĐỊNH MỨC";
-          var statusClass = voucherRate > 12 ? "text-[#8F60BF] bg-[#ECD8F2]" : "text-[#079DD9] bg-[#EBF6FC]";
-          return {
-            name: ch.name,
-            col2: ch.gross,
-            col3: ch.gopVoucherCount + " đơn",
-            col4: Math.round(ch.voucher * 0.6),
-            col5: Math.round(ch.voucher * 0.4),
-            col6: ch.voucher,
-            status: status,
-            statusClass: statusClass
-          };
+        tHtml += "</tr></thead><tbody class=\"divide-y divide-[#ECD8F2] font-mono text-[#1E1B2E]\">";
+        tableRows.forEach(function(row) {
+          tHtml += "<tr class=\"hover:bg-[#FAF6FD] transition\">";
+          row.forEach(function(cell, idx) {
+            var cellText = cell.trim();
+            if (cellText.indexOf("BÁO ĐỘNG") !== -1 || cellText.indexOf("🔴") !== -1 || cellText.indexOf("RỦI RO CAO") !== -1) {
+              cellText = "<span class=\"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF] border border-[#BEB6F2]\">" + cellText + "</span>";
+            } else if (cellText.indexOf("CẢNH BÁO") !== -1 || cellText.indexOf("🟡") !== -1) {
+              cellText = "<span class=\"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200\">" + cellText + "</span>";
+            } else if (cellText.indexOf("AN TOÀN") !== -1 || cellText.indexOf("🟢") !== -1 || cellText.indexOf("KIỂM SOÁT TỐT") !== -1) {
+              cellText = "<span class=\"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200\">" + cellText + "</span>";
+            }
+            var align = (idx === 0) ? "text-left font-sans font-bold text-[#1E1B2E]" : "text-right font-medium";
+            tHtml += "<td class=\"p-3 " + align + "\">" + cellText + "</td>";
+          });
+          tHtml += "</tr>";
         });
-        s3Body.innerHTML = dataVoucher.map(function(r) {
-          return '<tr class="hover:bg-[#FAF8FC] transition">' +
-            '<td class="p-3 font-semibold font-sans text-[#1E1B2E]">' + r.name + '</td>' +
-            '<td class="p-3 text-right text-[#1E1B2E]">' + window.formatVND(r.col2) + '</td>' +
-            '<td class="p-3 text-center text-[#5C5570]">' + r.col3 + '</td>' +
-            '<td class="p-3 text-right text-[#5C5570]">' + window.formatVND(r.col4) + '</td>' +
-            '<td class="p-3 text-right font-semibold text-[#8F60BF]">+' + window.formatVND(r.col5) + '</td>' +
-            '<td class="p-3 text-right font-bold text-[#1E1B2E]">' + window.formatVND(r.col6) + '</td>' +
-            '<td class="p-3 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + r.statusClass + '">' + r.status + '</span></td>' +
-          '</tr>';
-        }).join('');
-      } else if (topic === 'ops') {
-        if (s3Head) {
-          s3Head.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#EFE8F6]">' +
-            '<th class="p-3">Kênh / Chiến dịch</th>' +
-            '<th class="p-3 text-right">Doanh thu thô</th>' +
-            '<th class="p-3 text-center">Đơn hoàn xử lý</th>' +
-            '<th class="p-3 text-right">Phí đóng gói lại 15k</th>' +
-            '<th class="p-3 text-right text-[#8F60BF]">Hao hụt vỏ hộp (8.7%)</th>' +
-            '<th class="p-3 text-right font-semibold text-[#1E1B2E]">Tổn thất kho vận</th>' +
-            '<th class="p-3 text-center">Đánh giá rủi ro</th>' +
-          '</tr>';
+        tHtml += "</tbody></table></div>";
+        html.push(tHtml);
+        inTable = false;
+        tableHeaders = [];
+        tableRows = [];
+      }
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (line.startsWith("|") && line.endsWith("|")) {
+          var cells = line.slice(1, -1).split("|").map(function(c) { return c.trim(); });
+          if (cells.every(function(c) { return /^:?-+:?$/.test(c); })) continue;
+          if (!inTable) {
+            inTable = true;
+            tableHeaders = cells;
+          } else {
+            tableRows.push(cells);
+          }
+          continue;
+        } else {
+          flushTable();
         }
-        var dataOps = analytics.channels.map(function(ch) {
-          var opsStatus = ch.damagedLoss > 5000000 ? "HAO HỤT CAO" : "ỔN ĐỊNH";
-          var opsClass = ch.damagedLoss > 5000000 ? "text-[#8F60BF] bg-[#ECD8F2]" : "text-[#079DD9] bg-[#EBF6FC]";
-          return {
-            name: ch.name,
-            col2: ch.gross,
-            col3: ch.returnCount + " đơn hoàn",
-            col4: Math.round(ch.fulfillment * 0.4),
-            col5: ch.damagedLoss,
-            col6: Math.round(ch.fulfillment * 0.4) + ch.damagedLoss,
-            status: opsStatus,
-            statusClass: opsClass
-          };
-        });
-        s3Body.innerHTML = dataOps.map(function(r) {
-          return '<tr class="hover:bg-[#FAF8FC] transition">' +
-            '<td class="p-3 font-semibold font-sans text-[#1E1B2E]">' + r.name + '</td>' +
-            '<td class="p-3 text-right text-[#1E1B2E]">' + window.formatVND(r.col2) + '</td>' +
-            '<td class="p-3 text-center text-[#5C5570]">' + r.col3 + '</td>' +
-            '<td class="p-3 text-right text-[#5C5570]">' + window.formatVND(r.col4) + '</td>' +
-            '<td class="p-3 text-right font-semibold text-[#8F60BF]">+' + window.formatVND(r.col5) + '</td>' +
-            '<td class="p-3 text-right font-bold text-[#1E1B2E]">' + window.formatVND(r.col6) + '</td>' +
-            '<td class="p-3 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + r.statusClass + '">' + r.status + '</span></td>' +
-          '</tr>';
-        }).join('');
+
+        if (!line) continue;
+
+        if (line.startsWith("# ")) {
+          html.push("<h2 class=\"text-base sm:text-lg font-black text-[#1E1B2E] mt-5 mb-2 pb-1.5 border-b border-[#ECD8F2] flex items-center space-x-2\"><span class=\"w-2.5 h-2.5 rounded-full bg-[#8F60BF]\"></span><span>" + line.slice(2) + "</span></h2>");
+        } else if (line.startsWith("## ")) {
+          html.push("<h3 class=\"text-sm sm:text-base font-bold text-[#8F60BF] mt-4 mb-2 flex items-center space-x-1.5\"><i class=\"fa-solid fa-angle-right text-xs text-[#079DD9]\"></i><span>" + line.slice(3) + "</span></h3>");
+        } else if (line.startsWith("### ")) {
+          html.push("<h4 class=\"text-xs sm:text-sm font-bold text-[#1E1B2E] mt-3 mb-1\">" + line.slice(4) + "</h4>");
+        } else if (line.startsWith("- ") || line.startsWith("* ")) {
+          var itemText = line.slice(2).replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>");
+          html.push("<div class=\"flex items-start space-x-2 my-1.5 text-xs text-[#5C5570] leading-relaxed\"><span class=\"text-[#079DD9] font-bold text-sm leading-none shrink-0\">•</span><span>" + itemText + "</span></div>");
+        } else if (/^\d+\.\s/.test(line)) {
+          var numMatch = line.match(/^(\d+)\.\s(.*)/);
+          var itemText = numMatch[2].replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>");
+          html.push("<div class=\"flex items-start space-x-2.5 my-2 text-xs text-[#5C5570] leading-relaxed\"><span class=\"w-5 h-5 rounded-md bg-[#FAF6FD] border border-[#BEB6F2] text-[#8F60BF] font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs\">" + numMatch[1] + "</span><span>" + itemText + "</span></div>");
+        } else if (line.startsWith(">")) {
+          var quoteText = line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+          html.push("<div class=\"p-3.5 my-3 rounded-xl bg-[#FAF6FD] border-l-4 border-[#8F60BF] text-xs text-[#1E1B2E] font-medium\">" + quoteText + "</div>");
+        } else {
+          var pText = line.replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>").replace(/`([^`]+)`/g, "<code class=\"px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]\">$1</code>");
+          html.push("<p class=\"text-xs sm:text-sm text-[#5C5570] leading-relaxed my-2\">" + pText + "</p>");
+        }
+      }
+      flushTable();
+      return html.join("");
+    };
+
+    window.switchStep3View = function(view) {
+      var aiView = document.getElementById("step3-ai-report-view");
+      var tbView = document.getElementById("step3-table-view");
+      var tabAi = document.getElementById("step3-tab-ai");
+      var tabTb = document.getElementById("step3-tab-table");
+      if (view === "ai") {
+        if (aiView) aiView.classList.remove("hidden");
+        if (tbView) tbView.classList.add("hidden");
+        if (tabAi) {
+          tabAi.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#8F60BF] text-white shadow-2xs flex items-center space-x-1.5 cursor-pointer";
+        }
+        if (tabTb) {
+          tabTb.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-[#5C5570] hover:text-[#8F60BF] flex items-center space-x-1.5 cursor-pointer";
+        }
       } else {
-        if (s3Head) {
-          s3Head.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#EFE8F6]">' +
-            '<th class="p-3">Kênh / Chiến dịch</th>' +
-            '<th class="p-3 text-right">Doanh thu thô</th>' +
-            '<th class="p-3 text-right">Thất thoát ban đầu</th>' +
-            '<th class="p-3 text-right text-[#8F60BF]">Thất thoát trễ (+)</th>' +
-            '<th class="p-3 text-right font-semibold text-[#1E1B2E]">Tổng giá trị rò rỉ</th>' +
-            '<th class="p-3 text-center">Tỷ lệ rò rỉ (%)</th>' +
-            '<th class="p-3 text-center">Đánh giá rủi ro</th>' +
-          '</tr>';
+        if (aiView) aiView.classList.add("hidden");
+        if (tbView) tbView.classList.remove("hidden");
+        if (tabAi) {
+          tabAi.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition text-[#5C5570] hover:text-[#8F60BF] flex items-center space-x-1.5 cursor-pointer";
         }
-        var dataAll = analytics.channels.map(function(ch) {
-          var totalLeakage = ch.returnsTotal + ch.dedupLoss + ch.voucher;
-          var rateStr = (ch.gross > 0 ? (totalLeakage / ch.gross * 100).toFixed(1) : "0.0") + "%";
-          var st = totalLeakage > (ch.gross * 0.2) ? "RỦI RO CAO" : "KIỂM SOÁT TỐT";
-          var stClass = totalLeakage > (ch.gross * 0.2) ? "text-[#8F60BF] bg-[#ECD8F2]" : "text-[#079DD9] bg-[#EBF6FC]";
-          return {
-            name: ch.name,
-            col2: ch.gross,
-            col3: ch.returnsInPeriod + ch.voucher,
-            col4: ch.returnsLate + ch.dedupLoss,
-            col5: totalLeakage,
-            rate: rateStr,
-            status: st,
-            statusClass: stClass
-          };
+        if (tabTb) {
+          tabTb.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#8F60BF] text-white shadow-2xs flex items-center space-x-1.5 cursor-pointer";
+        }
+      }
+    };
+
+    window.triggerStep3AiDiagnosis = function(force) {
+      var spinner = document.getElementById("reanalyze-spinner");
+      var loadingEl = document.getElementById("step3-markdown-loading");
+      var contentEl = document.getElementById("step3-markdown-content");
+      if (spinner) spinner.classList.add("fa-spin");
+      if (loadingEl && (!contentEl || !contentEl.innerHTML.trim())) loadingEl.classList.remove("hidden");
+
+      var url = force ? "/api/diagnosis/analyze" : "/api/diagnosis/latest";
+      var opts = force ? { method: "POST" } : { method: "GET" };
+
+      fetch(url, opts)
+        .then(function(res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function(data) {
+          if (data && (data.markdown_report || data.dataset_title)) {
+            window.currentDiagnosisData = data;
+            window.renderStep3Table();
+          }
+        })
+        .catch(function(err) {
+          console.warn("Lỗi tải AI Diagnosis:", err);
+        })
+        .finally(function() {
+          if (spinner) spinner.classList.remove("fa-spin");
+          if (loadingEl) loadingEl.classList.add("hidden");
         });
-        s3Body.innerHTML = dataAll.map(function(r) {
-          return '<tr class="hover:bg-[#FAF8FC] transition">' +
-            '<td class="p-3 font-semibold font-sans text-[#1E1B2E]">' + r.name + '</td>' +
-            '<td class="p-3 text-right text-[#1E1B2E]">' + window.formatVND(r.col2) + '</td>' +
-            '<td class="p-3 text-right text-[#5C5570]">' + window.formatVND(r.col3) + '</td>' +
-            '<td class="p-3 text-right font-semibold text-[#8F60BF]">+' + window.formatVND(r.col4) + '</td>' +
-            '<td class="p-3 text-right font-bold text-[#1E1B2E]">' + window.formatVND(r.col5) + '</td>' +
-            '<td class="p-3 text-center font-bold text-[#8F60BF]">' + r.rate + '</td>' +
-            '<td class="p-3 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + r.statusClass + '">' + r.status + '</span></td>' +
-          '</tr>';
-        }).join('');
+    };
+
+    window.renderStep3Table = function() {
+      var diag = window.currentDiagnosisData;
+      var planData = window.currentCleansingPlanData;
+      var contentEl = document.getElementById("step3-markdown-content");
+      var s3Body = document.getElementById("step3-table-body");
+      var s3Head = document.getElementById("step3-table-head");
+      var titleEl = document.getElementById("step3-dataset-title");
+
+      // 1. Cập nhật 3 Thẻ KPI từ AI hoặc dữ liệu thực tế
+      if (diag && diag.kpi_cards && diag.kpi_cards.length >= 3) {
+        if (titleEl && diag.dataset_title) titleEl.textContent = diag.dataset_title;
+
+        var elCard1Label = document.getElementById("step3-card-ret-late-label");
+        var elCard1Val = document.getElementById("step3-card-ret-late");
+        var elCard1Sub = document.getElementById("step3-card-ret-late-sub");
+        if (elCard1Label) elCard1Label.textContent = diag.kpi_cards[0].title;
+        if (elCard1Val) elCard1Val.textContent = diag.kpi_cards[0].value;
+        if (elCard1Sub) elCard1Sub.textContent = diag.kpi_cards[0].subtext;
+
+        var elCard2Label = document.getElementById("step3-card-voucher-label");
+        var elCard2Val = document.getElementById("step3-card-voucher");
+        var elCard2Sub = document.getElementById("step3-card-voucher-sub");
+        if (elCard2Label) elCard2Label.textContent = diag.kpi_cards[1].title;
+        if (elCard2Val) elCard2Val.textContent = diag.kpi_cards[1].value;
+        if (elCard2Sub) elCard2Sub.textContent = diag.kpi_cards[1].subtext;
+
+        var elCard3Label = document.getElementById("step3-card-damaged-label");
+        var elCard3Val = document.getElementById("step3-card-damaged");
+        var elCard3Sub = document.getElementById("step3-card-damaged-sub");
+        if (elCard3Label) elCard3Label.textContent = diag.kpi_cards[2].title;
+        if (elCard3Val) elCard3Val.textContent = diag.kpi_cards[2].value;
+        if (elCard3Sub) elCard3Sub.textContent = diag.kpi_cards[2].subtext;
+      }
+
+      // 2. Render Markdown Report do AI sinh ra
+      if (contentEl) {
+        if (diag && diag.markdown_report) {
+          contentEl.innerHTML = window.renderMarkdownToHtml(diag.markdown_report);
+        } else {
+          window.triggerStep3AiDiagnosis(false);
+        }
+      }
+
+      // 3. Render Bảng Số Liệu Thực Tế của tệp tải lên
+      if (s3Head && s3Body) {
+        if (planData && planData.columns && planData.cleaned_sample && planData.cleaned_sample.length > 0) {
+          var cols = planData.columns;
+          s3Head.innerHTML = "<tr class=\"bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2]\">" +
+            "<th class=\"p-3 w-12 text-center whitespace-nowrap\">STT</th>" +
+            cols.map(function(c) {
+              return "<th class=\"p-3 whitespace-nowrap\">" + c + "</th>";
+            }).join("") +
+            "<th class=\"p-3 text-center whitespace-nowrap\">Đánh Giá Rủi Ro</th>" +
+          "</tr>";
+
+          s3Body.innerHTML = planData.cleaned_sample.map(function(r, idx) {
+            var cells = cols.map(function(c, cIdx) {
+              var v = r[c];
+              var displayVal = (v === null || v === undefined) ? "-" : (typeof v === "number" ? (v >= 1000 ? window.formatVND(v) : v.toString()) : v);
+              var align = (cIdx === 0) ? "text-left font-sans font-bold text-[#1E1B2E]" : "text-right font-medium text-[#1E1B2E]";
+              return "<td class=\"p-3 whitespace-nowrap " + align + "\">" + displayVal + "</td>";
+            }).join("");
+
+            var rowRisk = "🟢 KIỂM SOÁT TỐT";
+            var rowRiskClass = "text-emerald-800 bg-emerald-100";
+            if (r["M5"] === 0 || r["M5"] === "0") {
+              rowRisk = "🔴 BÁO ĐỘNG ĐỎ (Chạm Đáy M5)";
+              rowRiskClass = "text-[#8F60BF] bg-[#ECD8F2]";
+            } else if (r["M4"] !== undefined && r["M4"] !== null && r["M4"] !== "-") {
+              rowRisk = "🟡 CẢNH BÁO (Theo Dõi)";
+              rowRiskClass = "text-amber-800 bg-amber-100";
+            }
+
+            return "<tr class=\"hover:bg-[#FAF8FC] transition\">" +
+              "<td class=\"p-3 text-center text-[#5C5570] font-sans font-bold\">" + (idx + 1) + "</td>" +
+              cells +
+              "<td class=\"p-3 text-center whitespace-nowrap font-sans\"><span class=\"px-2.5 py-1 rounded-full text-xs font-bold " + rowRiskClass + "\">" + rowRisk + "</span></td>" +
+            "</tr>";
+          }).join("");
+        }
       }
     };
 

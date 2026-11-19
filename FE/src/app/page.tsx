@@ -65,8 +65,33 @@ export default function Home() {
   const [isExecutiveModalOpen, setIsExecutiveModalOpen] = useState<boolean>(false);
   const [isFullDatasetModalOpen, setIsFullDatasetModalOpen] = useState<boolean>(false);
   const [cleansingPlanData, setCleansingPlanData] = useState<any>(null);
+  const [diagnosisData, setDiagnosisData] = useState<any>(null);
+  const [isRefreshingDiagnosis, setIsRefreshingDiagnosis] = useState<boolean>(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const fetchDiagnosis = (file?: File) => {
+    setIsRefreshingDiagnosis(true);
+    if (file) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fetch("/api/diagnosis/analyze", { method: "POST", body: fd })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.markdown_report || d.dataset_title) setDiagnosisData(d);
+        })
+        .catch(() => {})
+        .finally(() => setIsRefreshingDiagnosis(false));
+    } else {
+      fetch("/api/diagnosis/latest")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.markdown_report || d.dataset_title) setDiagnosisData(d);
+        })
+        .catch(() => {})
+        .finally(() => setIsRefreshingDiagnosis(false));
+    }
+  };
 
   // 1. Initial health check & sample load / state restoration
   useEffect(() => {
@@ -99,6 +124,13 @@ export default function Home() {
     // Auto-load default sample on mount if no saved state
     loadSampleData("sample_data.csv");
   }, []);
+
+  // Auto-fetch diagnosis when arriving at Step 3 if not loaded
+  useEffect(() => {
+    if (currentStep === 3 && !diagnosisData) {
+      fetchDiagnosis();
+    }
+  }, [currentStep, diagnosisData]);
 
   // 2. Persist state to localStorage on changes
   useEffect(() => {
@@ -173,6 +205,10 @@ export default function Home() {
             }
           })
           .catch((err) => console.warn("Lỗi phân tích cleansing:", err));
+
+        fetchDiagnosis(fileObj);
+      } else {
+        fetchDiagnosis();
       }
 
       // If backend is online, sync in background
@@ -385,6 +421,9 @@ export default function Home() {
               activeDimension={activeDimension}
               onDimensionChange={handleDimensionChange}
               onProceedToStep4={() => setCurrentStep(4)}
+              diagnosisData={diagnosisData}
+              onRefreshDiagnosis={() => fetchDiagnosis()}
+              isRefreshing={isRefreshingDiagnosis}
             />
           )}
 

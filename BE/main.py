@@ -325,6 +325,7 @@ async def copilot_load_dataset(file: UploadFile = File(...)):
 
 
 latest_cleansing_cache: dict[str, Any] = {}
+latest_diagnosis_cache: dict[str, Any] = {}
 
 
 @app.post("/api/cleansing/analyze", tags=["Chuẩn hoá dữ liệu & AI Cleansing"])
@@ -337,8 +338,21 @@ async def cleansing_analyze(file: UploadFile = File(...)):
     try:
         from BE.cleansing import analyze_and_cleanse_dataframe
         result = analyze_and_cleanse_dataframe(content, filename)
-        global latest_cleansing_cache
+        global latest_cleansing_cache, latest_diagnosis_cache
         latest_cleansing_cache = result
+
+        # Tự động tiền xử lý phân tích chẩn đoán Bước 3 cho tệp tải lên
+        try:
+            import io
+            from BE.diagnosis import analyze_step3_diagnosis
+            if filename.lower().endswith(".csv"):
+                df_diag = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
+            else:
+                df_diag = pd.read_excel(io.BytesIO(content))
+            latest_diagnosis_cache = analyze_step3_diagnosis(df_diag, filename)
+        except Exception as diag_err:
+            print(f"[Diagnosis Warning] Lỗi sinh chẩn đoán ban đầu: {diag_err}")
+
         return result
     except Exception as e:
         raise HTTPException(400, f"Lỗi tiền xử lý dữ liệu: {str(e)}")
@@ -348,6 +362,46 @@ async def cleansing_analyze(file: UploadFile = File(...)):
 def get_latest_cleansing():
     """Lấy kết quả chuẩn hoá và kế hoạch AI mới nhất."""
     return latest_cleansing_cache or {"status": "empty"}
+
+
+@app.post("/api/diagnosis/analyze", tags=["Chẩn đoán rủi ro Bước 3"])
+async def diagnosis_analyze(file: Optional[UploadFile] = File(None)):
+    """Phân tích dữ liệu bằng Gemini AI sinh báo cáo chẩn đoán Markdown và KPI thực tế cho Bước 3."""
+    global latest_diagnosis_cache
+    from BE.diagnosis import analyze_step3_diagnosis
+    
+    if file and file.filename:
+        content = await file.read()
+        filename = Path(file.filename).name
+        import io
+        if filename.lower().endswith(".csv"):
+            try:
+                df = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
+            except Exception:
+                df = pd.read_csv(io.BytesIO(content), encoding="latin1")
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+        latest_diagnosis_cache = analyze_step3_diagnosis(df, filename)
+        return latest_diagnosis_cache
+
+    # Nếu không gửi file, sử dụng dữ liệu từ cache Bước 2
+    if latest_cleansing_cache and "cleaned_sample" in latest_cleansing_cache:
+        rows = latest_cleansing_cache["cleaned_sample"]
+        filename = latest_cleansing_cache.get("filename", "uploaded_dataset.csv")
+        df = pd.DataFrame(rows)
+        latest_diagnosis_cache = analyze_step3_diagnosis(df, filename)
+        return latest_diagnosis_cache
+
+    if latest_diagnosis_cache:
+        return latest_diagnosis_cache
+
+    raise HTTPException(400, "Chưa có dữ liệu nào được tải lên để phân tích.")
+
+
+@app.get("/api/diagnosis/latest", tags=["Chẩn đoán rủi ro Bước 3"])
+def get_latest_diagnosis():
+    """Lấy báo cáo chẩn đoán Bước 3 mới nhất."""
+    return latest_diagnosis_cache or {"status": "empty"}
 
 
 # Phục vụ favicon trực tiếp, tránh lỗi 404 trên trình duyệt
