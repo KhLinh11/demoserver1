@@ -97,7 +97,7 @@ def parse_and_validate_file(
     df = pd.read_excel(io.BytesIO(content))
   else:
     raise ValueError(
-      "Định dạng tệp không được hỗ trợ. Chỉ nhận .csv, .xlsx, .xls."
+      "Tệp không phù hợp! Định dạng tệp không được hỗ trợ. Chỉ nhận .csv, .xlsx, .xls."
     )
 
   raw_total_rows = len(df)
@@ -129,8 +129,23 @@ def parse_and_validate_file(
     ]
   ):
     raise ValueError(
-      "⚠️ Tệp phát hiện là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR của DATN), không phải tệp giao dịch bán lẻ! "
-      "Hệ thống cần tệp giao dịch bán hàng (Mã đơn, Kênh bán, Khu vực, Doanh thu, Chi phí, Lợi nhuận)."
+      "Tệp không phù hợp! Tệp phát hiện là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR), không phải tệp bán lẻ! "
+      "Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã cấu hình sẵn: 28_lai_lo_cua_hang.csv, du-lieu-test-ban-le.csv, sales_data.csv, sample_data.csv."
+    )
+
+  # 2. Kiểm tra tính phù hợp với 4 tệp cấu hình sẵn (28_lai_lo_cua_hang, du-lieu-test-ban-le, sales_data, sample_data)
+  allowed_prefixes = ["28_lai_lo_cua_hang", "du-lieu-test-ban-le", "du_lieu_test_ban_le", "sales_data", "sample_data"]
+  is_name_matched = any(p in fn_lower for p in allowed_prefixes)
+
+  is_lailo = any("cửa hàng" in c or "cua_hang" in c for c in lower_cols) and any("chi phí thuê" in c or "chi phí nhân sự" in c or "tổng chi phí" in c for c in lower_cols)
+  is_banle = any("mã dòng" in c or "ma_dong" in c for c in lower_cols) and any("kênh bán" in c or "sản phẩm" in c for c in lower_cols)
+  is_sales = any("sales_vnd" in c or "net_sales_vnd" in c for c in lower_cols) and any("shipping_days" in c or "returned" in c for c in lower_cols)
+  is_sample = any("order_value" in c or "net_order_value" in c for c in lower_cols) and any("cogs_recovered" in c or "damaged_restock_loss" in c or "old_report_status" in c for c in lower_cols)
+
+  if not is_name_matched and not (is_lailo or is_banle or is_sales or is_sample):
+    raise ValueError(
+      "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: "
+      "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
     )
 
   def find_col(candidates: list[str], default: str = "") -> str:

@@ -21,6 +21,48 @@ interface Step1UploadProps {
   totalRawRows?: number;
 }
 
+// 4 tệp dữ liệu được phép cấu hình sẵn trong FE/public
+const ALLOWED_CONFIG_FILES = [
+  "28_lai_lo_cua_hang",
+  "du-lieu-test-ban-le",
+  "du_lieu_test_ban_le",
+  "sales_data",
+  "sample_data",
+];
+
+export function isConfiguredFile(filename: string, headerCols: string[]): boolean {
+  const fnClean = filename.toLowerCase().replace(/\.(csv|xlsx|xls|numbers)$/i, "").trim();
+  // 1. Kiểm tra theo tên tệp cấu hình sẵn
+  if (ALLOWED_CONFIG_FILES.some((allowed) => fnClean === allowed || fnClean.includes(allowed))) {
+    return true;
+  }
+
+  // 2. Kiểm tra theo cấu trúc Header đặc trưng của 4 tệp
+  const lowerHeaders = headerCols.map((h) => String(h || "").toLowerCase().trim().replace(/^["']|["']$/g, ""));
+
+  // Tệp 1: 28_lai_lo_cua_hang (Tháng, Cửa hàng, Khu vực, Doanh thu (VND), Giá vốn (VND), Chi phí thuê...)
+  const isLaiLo = lowerHeaders.some((h) => h.includes("cửa hàng") || h.includes("cua_hang")) &&
+                  lowerHeaders.some((h) => h.includes("chi phí thuê") || h.includes("chi phí nhân sự") || h.includes("tổng chi phí"));
+  if (isLaiLo) return true;
+
+  // Tệp 2: du-lieu-test-ban-le (Mã dòng, Tháng, Kênh bán, Khu vực, Sản phẩm, Số đơn, Chi phí giá vốn...)
+  const isBanLe = lowerHeaders.some((h) => h.includes("mã dòng") || h.includes("ma_dong")) &&
+                  lowerHeaders.some((h) => h.includes("kênh bán") || h.includes("sản phẩm"));
+  if (isBanLe) return true;
+
+  // Tệp 3: sales_data (Order_ID, Sales_VND, Discount_Amount_VND, Net_Sales_VND, Shipping_Days, Returned...)
+  const isSalesData = lowerHeaders.some((h) => h.includes("sales_vnd") || h.includes("net_sales_vnd")) &&
+                      lowerHeaders.some((h) => h.includes("shipping_days") || h.includes("returned"));
+  if (isSalesData) return true;
+
+  // Tệp 4: sample_data (Order_ID, Order_Value, Discount_Amount, Net_Order_Value, COGS_Recovered, Damaged_Restock_Loss...)
+  const isSampleData = lowerHeaders.some((h) => h.includes("order_value") || h.includes("net_order_value")) &&
+                       lowerHeaders.some((h) => h.includes("cogs_recovered") || h.includes("damaged_restock_loss") || h.includes("old_report_status"));
+  if (isSampleData) return true;
+
+  return false;
+}
+
 export function Step1Upload({
   companyName,
   setCompanyName,
@@ -40,57 +82,101 @@ export function Step1Upload({
 
   const handleFile = (file: File) => {
     setErrorMsg("");
-    setSelectedFileName(file.name);
 
-    const isExcel = /\.(xlsx|xls|numbers)$/i.test(file.name);
+    const lowerName = file.name.toLowerCase();
+    const isCsv = lowerName.endsWith(".csv");
+    const isExcel = lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls");
 
+    // 1. Kiểm tra định dạng tệp: Phải là CSV hoặc Excel
+    if (!isCsv && !isExcel) {
+      setErrorMsg("Tệp không phù hợp! Hệ thống chỉ chấp nhận tệp định dạng CSV (.csv) hoặc Excel (.xlsx, .xls).");
+      setSelectedFileName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // 2. Xử lý tệp Excel (.xlsx, .xls)
     if (isExcel) {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const buffer = e.target?.result as ArrayBuffer;
           if (!buffer) {
-            setErrorMsg("Không thể đọc nội dung tệp Excel.");
+            setErrorMsg("Tệp không phù hợp: Không thể đọc nội dung tệp Excel.");
             return;
           }
           const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
           const firstSheet = wb.SheetNames[0];
           if (!firstSheet) {
-            setErrorMsg("Tệp Excel không chứa trang tính (sheet) nào.");
+            setErrorMsg("Tệp không phù hợp: Tệp Excel không chứa trang tính (sheet) nào.");
             return;
           }
           const ws = wb.Sheets[firstSheet];
-          const csvText = XLSX.utils.sheet_to_csv(ws);
-          if (!csvText || !csvText.trim()) {
-            setErrorMsg("Trang tính rỗng, không có dữ liệu giao dịch.");
+          const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+          if (!rows || rows.length <= 1) {
+            setErrorMsg("Tệp không phù hợp: Trang tính rỗng hoặc chỉ có dòng tiêu đề.");
             return;
           }
 
+          const headerCols = (rows[0] || []).map((c: any) => String(c || ""));
+          if (!isConfiguredFile(file.name, headerCols)) {
+            setErrorMsg(
+              "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: " +
+              "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
+            );
+            setSelectedFileName("");
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+          }
+
+          const csvText = XLSX.utils.sheet_to_csv(ws);
+          setSelectedFileName(file.name);
           const res = onFileLoaded(csvText, file.name, file);
           if (!res.success && res.error) {
             setErrorMsg(res.error);
             setSelectedFileName("");
           }
         } catch (err) {
-          setErrorMsg("Lỗi khi đọc tệp Excel: " + (err as Error).message);
+          setErrorMsg("Tệp không phù hợp: Lỗi khi giải mã Excel (" + (err as Error).message + ")");
           setSelectedFileName("");
         }
       };
       reader.onerror = () => {
-        setErrorMsg("Lỗi khi đọc tệp.");
+        setErrorMsg("Tệp không phù hợp: Lỗi khi đọc tệp từ thiết bị.");
       };
       reader.readAsArrayBuffer(file);
       return;
     }
 
+    // 3. Xử lý tệp CSV (.csv)
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      if (!text) {
-        setErrorMsg("Không thể đọc nội dung tệp.");
+      if (!text || !text.trim()) {
+        setErrorMsg("Tệp không phù hợp: Tệp CSV rỗng không có dữ liệu.");
         return;
       }
 
+      // Trích xuất header dòng đầu tiên
+      const cleanText = text.replace(/^\uFEFF/, "");
+      const firstLine = cleanText.split(/\r?\n/).find((l) => l.trim().length > 0) || "";
+      let delim = ",";
+      if ((firstLine.match(/\t/g) || []).length > (firstLine.match(/,/g) || []).length) delim = "\t";
+      else if ((firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length) delim = ";";
+      
+      const headerCols = firstLine.split(delim).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+
+      if (!isConfiguredFile(file.name, headerCols)) {
+        setErrorMsg(
+          "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: " +
+          "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
+        );
+        setSelectedFileName("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      setSelectedFileName(file.name);
       const res = onFileLoaded(text, file.name, file);
       if (!res.success && res.error) {
         setErrorMsg(res.error);
@@ -98,7 +184,7 @@ export function Step1Upload({
       }
     };
     reader.onerror = () => {
-      setErrorMsg("Lỗi khi đọc tệp.");
+      setErrorMsg("Tệp không phù hợp: Lỗi khi đọc nội dung tệp.");
     };
     reader.readAsText(file);
   };

@@ -132,9 +132,25 @@ export function processClientDataset(
   );
   if (isNetworkDataset) {
     throw new Error(
-      "⚠️ Tệp phát hiện là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR của dự án DATN), không phải tệp giao dịch bán lẻ! " +
-      "Hệ thống Vitara cần tệp giao dịch bán hàng (có các trường: Khu vực, Kênh bán, Sản phẩm, Doanh thu, Chi phí, Lợi nhuận). " +
-      "Vui lòng nạp đúng tệp dữ liệu bán hàng hoặc bấm chọn các bài toán mẫu bên dưới để kiểm thử.",
+      "Tệp không phù hợp! Tệp phát hiện là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR), không phải tệp bán lẻ! " +
+      "Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã cấu hình sẵn: 28_lai_lo_cua_hang.csv, du-lieu-test-ban-le.csv, sales_data.csv, sample_data.csv."
+    );
+  }
+
+  // 2. Kiểm tra tính phù hợp với 4 tệp cấu hình sẵn trong FE/public
+  const isLaiLo = headerRow.some((h) => h.includes("cửa hàng") || h.includes("cua_hang")) &&
+                  headerRow.some((h) => h.includes("chi phí thuê") || h.includes("chi phí nhân sự") || h.includes("tổng chi phí"));
+  const isBanLe = headerRow.some((h) => h.includes("mã dòng") || h.includes("ma_dong")) &&
+                  headerRow.some((h) => h.includes("kênh bán") || h.includes("sản phẩm"));
+  const isSalesData = headerRow.some((h) => h.includes("sales_vnd") || h.includes("net_sales_vnd")) &&
+                      headerRow.some((h) => h.includes("shipping_days") || h.includes("returned"));
+  const isSampleData = headerRow.some((h) => h.includes("order_value") || h.includes("net_order_value")) &&
+                       headerRow.some((h) => h.includes("cogs_recovered") || h.includes("damaged_restock_loss") || h.includes("old_report_status"));
+
+  if (!isLaiLo && !isBanLe && !isSalesData && !isSampleData) {
+    throw new Error(
+      "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: " +
+      "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
     );
   }
 
