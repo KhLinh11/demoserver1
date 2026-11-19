@@ -125,12 +125,20 @@ export default function Home() {
     loadSampleData("sample_data.csv");
   }, []);
 
-  // Auto-fetch diagnosis when arriving at Step 3 if not loaded
+  // Auto-fetch diagnosis and cleansing data when arriving at Step 3 if not loaded
   useEffect(() => {
-    if (currentStep === 3 && !diagnosisData) {
-      fetchDiagnosis();
+    if (currentStep === 3) {
+      if (!diagnosisData) fetchDiagnosis();
+      if (!cleansingPlanData) {
+        fetch("/api/cleansing/latest")
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.status === "success") setCleansingPlanData(d);
+          })
+          .catch(() => {});
+      }
     }
-  }, [currentStep, diagnosisData]);
+  }, [currentStep, diagnosisData, cleansingPlanData]);
 
   // 2. Persist state to localStorage on changes
   useEffect(() => {
@@ -424,6 +432,7 @@ export default function Home() {
               diagnosisData={diagnosisData}
               onRefreshDiagnosis={() => fetchDiagnosis()}
               isRefreshing={isRefreshingDiagnosis}
+              cleansingPlanData={cleansingPlanData}
             />
           )}
 

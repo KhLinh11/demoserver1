@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 
 import pandas as pd
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -329,7 +329,7 @@ latest_diagnosis_cache: dict[str, Any] = {}
 
 
 @app.post("/api/cleansing/analyze", tags=["Chuẩn hoá dữ liệu & AI Cleansing"])
-async def cleansing_analyze(file: UploadFile = File(...)):
+async def cleansing_analyze(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """Phân tích dữ liệu bằng pandas và sinh Kế hoạch Chuẩn hoá Tự động (AI Cleansing Plan) qua Gemini API."""
     if not file.filename:
         raise HTTPException(400, "Vui lòng chọn tệp.")
@@ -341,17 +341,21 @@ async def cleansing_analyze(file: UploadFile = File(...)):
         global latest_cleansing_cache, latest_diagnosis_cache
         latest_cleansing_cache = result
 
-        # Tự động tiền xử lý phân tích chẩn đoán Bước 3 cho tệp tải lên
-        try:
-            import io
-            from BE.diagnosis import analyze_step3_diagnosis
-            if filename.lower().endswith(".csv"):
-                df_diag = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
-            else:
-                df_diag = pd.read_excel(io.BytesIO(content))
-            latest_diagnosis_cache = analyze_step3_diagnosis(df_diag, filename)
-        except Exception as diag_err:
-            print(f"[Diagnosis Warning] Lỗi sinh chẩn đoán ban đầu: {diag_err}")
+        # Chạy phân tích chẩn đoán Bước 3 song song ở background để Bước 2 trả về ngay lập tức
+        def run_bg_diagnosis(file_bytes: bytes, fname: str):
+            global latest_diagnosis_cache
+            try:
+                import io
+                from BE.diagnosis import analyze_step3_diagnosis
+                if fname.lower().endswith(".csv"):
+                    df_diag = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8-sig")
+                else:
+                    df_diag = pd.read_excel(io.BytesIO(file_bytes))
+                latest_diagnosis_cache = analyze_step3_diagnosis(df_diag, fname)
+            except Exception as diag_err:
+                print(f"[Diagnosis Warning] Lỗi sinh chẩn đoán ban đầu: {diag_err}")
+
+        background_tasks.add_task(run_bg_diagnosis, content, filename)
 
         return result
     except Exception as e:

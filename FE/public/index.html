@@ -744,6 +744,9 @@
               if (typeof window.renderDynamicStep2 === "function") {
                 window.renderDynamicStep2(data);
               }
+              if (typeof window.renderStep3Table === "function") {
+                window.renderStep3Table();
+              }
               // Tự động tải báo cáo chẩn đoán Bước 3 do AI phân tích
               fetch("/api/diagnosis/latest")
                 .then(function(r) { return r.json(); })
@@ -1029,26 +1032,9 @@
       window.lastLoadedFileName = fileName;
       window.lastLoadedFileSize = fileSize || 0;
       window.lastLoadedDroppedDups = droppedExactDups || 0;
+      window.rawFileHeaders = (rows && rows.length > 0) ? rows[0] : [];
+      window.rawFileRows = (rows && rows.length > 1) ? rows.slice(1) : [];
       if (typeof window.saveAppState === 'function') window.saveAppState();
-
-      // Nạp dữ liệu đồng thời vào Pandas Preprocessing & AI Cleansing Plan (Gemini)
-      try {
-        var cleansingFd = new FormData();
-        cleansingFd.append("file", file);
-        fetch("/api/cleansing/analyze", { method: "POST", body: cleansingFd })
-          .then(function(res) { return res.json(); })
-          .then(function(planData) {
-            if (planData && planData.status === "success") {
-              window.currentCleansingPlanData = planData;
-              if (typeof window.renderDynamicStep2 === "function") {
-                window.renderDynamicStep2(planData);
-              }
-            }
-          })
-          .catch(function(e) {
-            console.warn("Lỗi gọi /api/cleansing/analyze:", e);
-          });
-      } catch(e) {}
 
       if (dropZone) {
         dropZone.classList.remove('border-[#BEB6F2]', 'bg-[#FAF6FD]', 'border-[#D93848]', 'bg-[#FDEEED]/30');
@@ -2501,16 +2487,45 @@
           </div>
 
           <!-- GÓC NHÌN 2: BẢNG SỐ LIỆU ĐỐI SOÁT TRỰC TIẾP -->
-          <div id="step3-table-view" class="hidden p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-[#ECD8F2]">
-              <span class="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider">Bảng dữ liệu thực tế theo tệp đã tải</span>
-              <span class="text-xs text-[#5C5570]" id="step3-table-subtitle">Hiển thị toàn bộ trường dữ liệu</span>
+          <div id="step3-table-view" class="hidden p-6 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#ECD8F2] gap-3">
+              <div>
+                <span class="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider flex items-center space-x-2">
+                  <i class="fa-solid fa-table text-[#8F60BF]"></i>
+                  <span>Bảng Dữ Liệu Thực Tế Theo Tệp Đã Tải</span>
+                </span>
+                <span class="text-xs text-[#5C5570] block mt-0.5" id="step3-table-subtitle">Đang tải cấu trúc dữ liệu...</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-[#5C5570]"></i>
+                  <input type="text" id="step3-table-search" oninput="window.filterStep3Table()" placeholder="Lọc / Tìm kiếm nhanh..." class="pl-8 pr-3 py-1.5 rounded-xl border border-[#ECD8F2] bg-[#FAF8FC] text-xs text-[#1E1B2E] focus:outline-hidden focus:border-[#8F60BF] w-48 sm:w-56 transition">
+                </div>
+                <button onclick="window.exportCleanedDataSampleCSV()" class="px-3 py-1.5 rounded-xl bg-[#FAF6FD] hover:bg-[#ECD8F2] text-[#8F60BF] border border-[#BEB6F2] text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer" title="Tải sổ cái CSV sạch">
+                  <i class="fa-solid fa-file-arrow-down"></i>
+                  <span>Xuất CSV</span>
+                </button>
+              </div>
             </div>
-            <div class="overflow-x-auto border border-[#ECD8F2] rounded-xl">
+
+            <!-- Trạng thái đang tải dữ liệu bảng -->
+            <div id="step3-table-loading" class="hidden p-10 text-center space-y-3">
+              <i class="fa-solid fa-circle-notch fa-spin text-2xl text-[#8F60BF]"></i>
+              <p class="text-xs font-bold text-[#8F60BF]">Đang chuẩn hoá và tải cấu trúc dữ liệu thực tế...</p>
+            </div>
+
+            <!-- Bảng dữ liệu chính -->
+            <div id="step3-table-container" class="overflow-x-auto border border-[#ECD8F2] rounded-xl shadow-2xs">
               <table class="w-full text-left text-xs sm:text-sm border-collapse">
-                <thead id="step3-table-head"></thead>
-                <tbody id="step3-table-body" class="divide-y divide-[#ECD8F2] font-mono"></tbody>
+                <thead id="step3-table-head" class="bg-[#FAF8FC]"></thead>
+                <tbody id="step3-table-body" class="divide-y divide-[#ECD8F2]"></tbody>
               </table>
+            </div>
+
+            <!-- Trạng thái trống khi chưa có dữ liệu -->
+            <div id="step3-table-empty" class="hidden p-8 text-center text-xs text-[#5C5570] bg-[#FAF8FC] rounded-xl border border-dashed border-[#ECD8F2]">
+              <i class="fa-solid fa-inbox text-xl text-[#BEB6F2] mb-2 block"></i>
+              <span>Chưa có dữ liệu sổ cái. Vui lòng tải tệp CSV hoặc Excel ở Bước 1.</span>
             </div>
           </div>
 
@@ -4324,8 +4339,20 @@
     };
 
     window.renderMarkdownToHtml = function(md) {
-      if (!md) return "<div class=\"p-6 text-center text-[#5C5570]\">Chưa có nội dung phân tích.</div>";
-      var lines = md.split("\n");
+      if (!md) return "<div class=\"p-8 text-center text-[#5C5570] font-medium\">Chưa có nội dung phân tích từ AI.</div>";
+      var rawLines = md.split("\n");
+      var lines = [];
+      // Chuẩn hoá: nếu có dòng chỉ chứa dấu bullet "•" hoặc "-" đứng riêng, gộp vào dòng kế tiếp
+      for (var l = 0; l < rawLines.length; l++) {
+        var cur = rawLines[l].trim();
+        if ((cur === "•" || cur === "-" || cur === "*") && (l + 1 < rawLines.length)) {
+          lines.push(cur + " " + rawLines[l + 1].trim());
+          l++;
+        } else {
+          lines.push(cur);
+        }
+      }
+
       var html = [];
       var inTable = false;
       var tableHeaders = [];
@@ -4333,27 +4360,41 @@
 
       function flushTable() {
         if (!inTable) return;
-        var tHtml = "<div class=\"overflow-x-auto my-4 rounded-xl border border-[#ECD8F2] shadow-xs bg-white\">" +
+        var tHtml = "<div class=\"overflow-x-auto my-5 rounded-2xl border border-[#ECD8F2] shadow-sm bg-white\">" +
           "<table class=\"w-full text-xs text-left border-collapse\">" +
-          "<thead class=\"bg-[#FAF8FC] text-[#5C5570] font-bold border-b border-[#ECD8F2]\">";
-        tHtml += "<tr>";
-        tableHeaders.forEach(function(h) {
-          tHtml += "<th class=\"p-3 whitespace-nowrap\">" + h + "</th>";
+          "<thead class=\"bg-[#FAF8FC] text-[#5C5570] font-bold border-b border-[#ECD8F2]\">" +
+          "<tr>";
+        tableHeaders.forEach(function(h, idx) {
+          var align = (idx === 0) ? "text-left" : "text-right";
+          if (idx === tableHeaders.length - 1) align = "text-center";
+          tHtml += "<th class=\"p-3.5 whitespace-nowrap " + align + "\">" + h + "</th>";
         });
         tHtml += "</tr></thead><tbody class=\"divide-y divide-[#ECD8F2] font-mono text-[#1E1B2E]\">";
         tableRows.forEach(function(row) {
-          tHtml += "<tr class=\"hover:bg-[#FAF6FD] transition\">";
+          tHtml += "<tr class=\"hover:bg-[#FAF6FD] transition even:bg-[#FAF8FC]/40\">";
           row.forEach(function(cell, idx) {
             var cellText = cell.trim();
-            if (cellText.indexOf("BÁO ĐỘNG") !== -1 || cellText.indexOf("🔴") !== -1 || cellText.indexOf("RỦI RO CAO") !== -1) {
-              cellText = "<span class=\"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF] border border-[#BEB6F2]\">" + cellText + "</span>";
-            } else if (cellText.indexOf("CẢNH BÁO") !== -1 || cellText.indexOf("🟡") !== -1) {
-              cellText = "<span class=\"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200\">" + cellText + "</span>";
-            } else if (cellText.indexOf("AN TOÀN") !== -1 || cellText.indexOf("🟢") !== -1 || cellText.indexOf("KIỂM SOÁT TỐT") !== -1) {
-              cellText = "<span class=\"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200\">" + cellText + "</span>";
+            var upper = cellText.toUpperCase();
+            var align = (idx === 0) ? "text-left font-sans font-bold text-[#1E1B2E]" : "text-right font-medium text-[#1E1B2E]";
+            
+            // Format Badge Trạng Thái Rủi Ro
+            if (upper.indexOf("BÁO ĐỘNG") !== -1 || upper.indexOf("🔴") !== -1 || upper.indexOf("RỦI RO CAO") !== -1 || upper === "CAO" || upper.indexOf("CHẠM ĐÁY") !== -1 || upper.indexOf("THÂM HỤT") !== -1) {
+              cellText = "<span class=\"inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]\"><span>🔴</span><span>" + cellText.replace(/^[🔴\s*]+/, '') + "</span></span>";
+              align = "text-center font-sans";
+            } else if (upper.indexOf("CẢNH BÁO") !== -1 || upper.indexOf("🟡") !== -1 || upper === "TRUNG BÌNH" || upper.indexOf("SUY GIẢM") !== -1 || upper.indexOf("THEO DÕI") !== -1) {
+              cellText = "<span class=\"inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]\"><span>🟡</span><span>" + cellText.replace(/^[🟡\s*]+/, '') + "</span></span>";
+              align = "text-center font-sans";
+            } else if (upper.indexOf("AN TOÀN") !== -1 || upper.indexOf("🟢") !== -1 || upper.indexOf("KIỂM SOÁT TỐT") !== -1 || upper === "THẤP" || upper === "TỐT") {
+              cellText = "<span class=\"inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]\"><span>🟢</span><span>" + cellText.replace(/^[🟢\s*]+/, '') + "</span></span>";
+              align = "text-center font-sans";
+            } else if (cellText === "-" || cellText === "—" || cellText === "N/A" || upper.indexOf("MỚI KHỞI TẠO") !== -1 || upper.indexOf("⚪") !== -1) {
+              cellText = "<span class=\"inline-block px-2 py-0.5 rounded text-[10px] font-bold text-[#718096] bg-[#EDF2F7]\">" + (cellText === "—" || cellText === "-" ? "—" : cellText) + "</span>";
+              align = "text-center font-sans";
+            } else {
+              // Format chữ đậm trong ô
+              cellText = cellText.replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>");
             }
-            var align = (idx === 0) ? "text-left font-sans font-bold text-[#1E1B2E]" : "text-right font-medium";
-            tHtml += "<td class=\"p-3 " + align + "\">" + cellText + "</td>";
+            tHtml += "<td class=\"p-3.5 whitespace-nowrap " + align + "\">" + cellText + "</td>";
           });
           tHtml += "</tr>";
         });
@@ -4365,7 +4406,9 @@
       }
 
       for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
+        var line = lines[i];
+
+        // 1. Markdown Table Row
         if (line.startsWith("|") && line.endsWith("|")) {
           var cells = line.slice(1, -1).split("|").map(function(c) { return c.trim(); });
           if (cells.every(function(c) { return /^:?-+:?$/.test(c); })) continue;
@@ -4382,27 +4425,105 @@
 
         if (!line) continue;
 
-        if (line.startsWith("# ")) {
-          html.push("<h2 class=\"text-base sm:text-lg font-black text-[#1E1B2E] mt-5 mb-2 pb-1.5 border-b border-[#ECD8F2] flex items-center space-x-2\"><span class=\"w-2.5 h-2.5 rounded-full bg-[#8F60BF]\"></span><span>" + line.slice(2) + "</span></h2>");
-        } else if (line.startsWith("## ")) {
-          html.push("<h3 class=\"text-sm sm:text-base font-bold text-[#8F60BF] mt-4 mb-2 flex items-center space-x-1.5\"><i class=\"fa-solid fa-angle-right text-xs text-[#079DD9]\"></i><span>" + line.slice(3) + "</span></h3>");
-        } else if (line.startsWith("### ")) {
-          html.push("<h4 class=\"text-xs sm:text-sm font-bold text-[#1E1B2E] mt-3 mb-1\">" + line.slice(4) + "</h4>");
-        } else if (line.startsWith("- ") || line.startsWith("* ")) {
-          var itemText = line.slice(2).replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>");
-          html.push("<div class=\"flex items-start space-x-2 my-1.5 text-xs text-[#5C5570] leading-relaxed\"><span class=\"text-[#079DD9] font-bold text-sm leading-none shrink-0\">•</span><span>" + itemText + "</span></div>");
-        } else if (/^\d+\.\s/.test(line)) {
-          var numMatch = line.match(/^(\d+)\.\s(.*)/);
-          var itemText = numMatch[2].replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>");
-          html.push("<div class=\"flex items-start space-x-2.5 my-2 text-xs text-[#5C5570] leading-relaxed\"><span class=\"w-5 h-5 rounded-md bg-[#FAF6FD] border border-[#BEB6F2] text-[#8F60BF] font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs\">" + numMatch[1] + "</span><span>" + itemText + "</span></div>");
-        } else if (line.startsWith(">")) {
-          var quoteText = line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-          html.push("<div class=\"p-3.5 my-3 rounded-xl bg-[#FAF6FD] border-l-4 border-[#8F60BF] text-xs text-[#1E1B2E] font-medium\">" + quoteText + "</div>");
-        } else {
-          var pText = line.replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>").replace(/`([^`]+)`/g, "<code class=\"px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]\">$1</code>");
-          html.push("<p class=\"text-xs sm:text-sm text-[#5C5570] leading-relaxed my-2\">" + pText + "</p>");
+        // 2. Nhận diện 4 Mục Chính Cấp Cao (Major Section Headers: 1. / 2. / 3. / 4. hoặc ## 1. ...)
+        var sectionMatch = line.match(/^(?:##?\s*)?(?:[🎯📊🚨💡🔍📈]\s*)?([1-4])\.\s*(.*)/);
+        if (sectionMatch) {
+          var sNum = sectionMatch[1];
+          var sTitle = sectionMatch[2].replace(/\*\*(.*?)\*\*/g, "$1").trim();
+          var icon = "🎯";
+          var badgeColor = "bg-[#FAF6FD] border-[#BEB6F2] text-[#8F60BF]";
+          if (sNum === "1") { icon = "🎯"; badgeColor = "bg-[#FAF6FD] border-[#BEB6F2] text-[#8F60BF]"; }
+          else if (sNum === "2") { icon = "📊"; badgeColor = "bg-[#EBF6FC] border-[#99D9F2] text-[#079DD9]"; }
+          else if (sNum === "3") { icon = "🚨"; badgeColor = "bg-[#FDEEED] border-[#FCA5A5] text-[#D93848]"; }
+          else if (sNum === "4") { icon = "💡"; badgeColor = "bg-[#E6F8F3] border-[#70D7B8] text-[#1E7E62]"; }
+
+          html.push("<div class=\"mt-7 mb-3 pt-4 border-t border-[#ECD8F2] first:mt-0 first:pt-0 first:border-0\">" +
+            "<div class=\"flex items-center space-x-3\">" +
+              "<span class=\"w-8 h-8 rounded-xl border flex items-center justify-center text-sm shadow-2xs font-black " + badgeColor + "\">" + icon + "</span>" +
+              "<h2 class=\"text-base sm:text-lg font-black text-[#1E1B2E] tracking-tight\">" + sNum + ". " + sTitle + "</h2>" +
+            "</div>" +
+          "</div>");
+          continue;
         }
+
+        // 3. Các Header khác (## hoặc ###)
+        if (line.startsWith("## ")) {
+          var h2Text = line.slice(3).replace(/\*\*(.*?)\*\*/g, "$1").trim();
+          html.push("<h2 class=\"text-base font-black text-[#1E1B2E] mt-5 mb-2 pb-1.5 border-b border-[#ECD8F2] flex items-center space-x-2\"><span class=\"w-2.5 h-2.5 rounded-full bg-[#8F60BF]\"></span><span>" + h2Text + "</span></h2>");
+          continue;
+        }
+        if (line.startsWith("### ")) {
+          var h3Text = line.slice(4).replace(/\*\*(.*?)\*\*/g, "$1").trim();
+          html.push("<h3 class=\"text-xs sm:text-sm font-bold text-[#8F60BF] mt-3.5 mb-1.5 flex items-center space-x-2\"><span class=\"w-1.5 h-1.5 rounded-full bg-[#079DD9]\"></span><span>" + h3Text + "</span></h3>");
+          continue;
+        }
+
+        // 4. Khối trích dẫn / Cảnh báo (Blockquote: > ⚠️ hoặc > 💡 hoặc >)
+        if (line.startsWith(">")) {
+          var qText = line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, "<strong class=\"font-bold\">$1</strong>");
+          if (qText.indexOf("⚠️") !== -1 || qText.indexOf("Cảnh Báo") !== -1 || qText.indexOf("Báo Động") !== -1) {
+            html.push("<div class=\"p-4 my-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border-l-4 border-[#D93848] text-xs text-[#991B1B] font-medium leading-relaxed shadow-2xs flex items-start space-x-3\">" +
+              "<i class=\"fa-solid fa-triangle-exclamation text-base text-[#D93848] shrink-0 mt-0.5\"></i>" +
+              "<div>" + qText + "</div>" +
+            "</div>");
+          } else if (qText.indexOf("💡") !== -1 || qText.indexOf("Khuyến Nghị") !== -1 || qText.indexOf("Đề Xuất") !== -1) {
+            html.push("<div class=\"p-4 my-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-500 text-xs text-emerald-900 font-medium leading-relaxed shadow-2xs flex items-start space-x-3\">" +
+              "<i class=\"fa-solid fa-lightbulb text-base text-emerald-600 shrink-0 mt-0.5\"></i>" +
+              "<div>" + qText + "</div>" +
+            "</div>");
+          } else {
+            html.push("<div class=\"p-3.5 my-3 rounded-2xl bg-[#FAF6FD] border-l-4 border-[#8F60BF] text-xs text-[#1E1B2E] font-medium leading-relaxed shadow-2xs\">" + qText + "</div>");
+          }
+          continue;
+        }
+
+        // 5. Đường kẻ ngang (---)
+        if (line === "---" || line === "***" || line === "___") {
+          html.push("<div class=\"my-5 border-b border-[#ECD8F2]\"></div>");
+          continue;
+        }
+
+        // 6. Gạch đầu dòng danh sách (- / * / • / +)
+        if (/^[•\-\*\+]\s/.test(line)) {
+          var itemClean = line.replace(/^[•\-\*\+]\s+/, "");
+          var formattedItem = itemClean
+            .replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>")
+            .replace(/`([^`]+)`/g, "<code class=\"px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]\">$1</code>");
+          html.push("<div class=\"flex items-start space-x-2.5 my-2 text-xs sm:text-sm text-[#4A5568] leading-relaxed\">" +
+            "<span class=\"w-1.5 h-1.5 rounded-full bg-[#8F60BF] mt-2 shrink-0\"></span>" +
+            "<div class=\"flex-1\">" + formattedItem + "</div>" +
+          "</div>");
+          continue;
+        }
+
+        // 7. Danh sách có số thứ tự con (1. / 2. / 3.)
+        var subNumMatch = line.match(/^(\d+)\.\s+(.*)/);
+        if (subNumMatch) {
+          var subNum = subNumMatch[1];
+          var subText = subNumMatch[2]
+            .replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>")
+            .replace(/`([^`]+)`/g, "<code class=\"px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]\">$1</code>");
+          html.push("<div class=\"flex items-start space-x-2.5 my-2.5 text-xs sm:text-sm text-[#4A5568] leading-relaxed\">" +
+            "<span class=\"w-5 h-5 rounded-md bg-[#FAF6FD] border border-[#BEB6F2] text-[#8F60BF] font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs mt-0.5\">" + subNum + "</span>" +
+            "<div class=\"flex-1\">" + subText + "</div>" +
+          "</div>");
+          continue;
+        }
+
+        // 8. Chú thích in nghiêng (*Lưu ý: ...*)
+        if (/^\*.*\*$/.test(line) || /^_.*_$/.test(line)) {
+          var noteContent = line.replace(/^[\*_]|[\*_]$/g, "");
+          html.push("<p class=\"text-[11px] text-[#718096] italic my-2 flex items-center space-x-1.5\"><i class=\"fa-solid fa-circle-info text-[#079DD9]\"></i><span>" + noteContent + "</span></p>");
+          continue;
+        }
+
+        // 9. Đoạn văn thông thường
+        var pText = line
+          .replace(/\*\*(.*?)\*\*/g, "<strong class=\"text-[#1E1B2E] font-bold\">$1</strong>")
+          .replace(/`([^`]+)`/g, "<code class=\"px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]\">$1</code>");
+        html.push("<p class=\"text-xs sm:text-sm text-[#4A5568] leading-relaxed my-2\">" + pText + "</p>");
       }
+
       flushTable();
       return html.join("");
     };
@@ -4429,6 +4550,10 @@
         }
         if (tabTb) {
           tabTb.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition bg-[#8F60BF] text-white shadow-2xs flex items-center space-x-1.5 cursor-pointer";
+        }
+        // Luôn re-render dữ liệu bảng chi tiết khi người dùng chuyển sang tab Bảng số liệu
+        if (typeof window.renderStep3Table === "function") {
+          window.renderStep3Table();
         }
       }
     };
@@ -4508,42 +4633,136 @@
 
       // 3. Render Bảng Số Liệu Thực Tế của tệp tải lên
       if (s3Head && s3Body) {
-        if (planData && planData.columns && planData.cleaned_sample && planData.cleaned_sample.length > 0) {
-          var cols = planData.columns;
-          s3Head.innerHTML = "<tr class=\"bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2]\">" +
-            "<th class=\"p-3 w-12 text-center whitespace-nowrap\">STT</th>" +
+        var subTitleEl = document.getElementById("step3-table-subtitle");
+        var tbLoading = document.getElementById("step3-table-loading");
+        var tbContainer = document.getElementById("step3-table-container");
+        var tbEmpty = document.getElementById("step3-table-empty");
+
+        var rows = [];
+        var cols = [];
+
+        if (planData && planData.cleaned_sample && planData.cleaned_sample.length > 0) {
+          rows = planData.cleaned_sample;
+          cols = planData.columns || Object.keys(rows[0]).filter(function(k) { return !k.startsWith('_'); });
+        } else if (window.rawFileHeaders && window.rawFileRows && window.rawFileRows.length > 0) {
+          cols = window.rawFileHeaders;
+          rows = window.rawFileRows.map(function(r) {
+            var obj = {};
+            cols.forEach(function(c, cIdx) {
+              obj[c] = (r[cIdx] !== undefined) ? r[cIdx] : "-";
+            });
+            return obj;
+          });
+        }
+
+        if (rows.length > 0 && cols.length > 0) {
+          if (tbLoading) tbLoading.classList.add("hidden");
+          if (tbEmpty) tbEmpty.classList.add("hidden");
+          if (tbContainer) tbContainer.classList.remove("hidden");
+
+          if (subTitleEl) {
+            subTitleEl.textContent = "Hiển thị " + rows.length.toLocaleString() + " dòng · " + cols.length + " cột dữ liệu thực tế";
+          }
+
+          s3Head.innerHTML = "<tr class=\"bg-[#FAF8FC] text-[#5C5570] font-bold border-b border-[#ECD8F2]\">" +
+            "<th class=\"p-3.5 w-14 text-center whitespace-nowrap\">STT</th>" +
             cols.map(function(c) {
-              return "<th class=\"p-3 whitespace-nowrap\">" + c + "</th>";
+              return "<th class=\"p-3.5 whitespace-nowrap text-left\">" + c + "</th>";
             }).join("") +
-            "<th class=\"p-3 text-center whitespace-nowrap\">Đánh Giá Rủi Ro</th>" +
+            "<th class=\"p-3.5 text-center whitespace-nowrap\">Trạng Thái Audit</th>" +
+            "<th class=\"p-3.5 text-center whitespace-nowrap\">Đánh Giá Rủi Ro</th>" +
           "</tr>";
 
-          s3Body.innerHTML = planData.cleaned_sample.map(function(r, idx) {
-            var cells = cols.map(function(c, cIdx) {
-              var v = r[c];
-              var displayVal = (v === null || v === undefined) ? "-" : (typeof v === "number" ? (v >= 1000 ? window.formatVND(v) : v.toString()) : v);
-              var align = (cIdx === 0) ? "text-left font-sans font-bold text-[#1E1B2E]" : "text-right font-medium text-[#1E1B2E]";
-              return "<td class=\"p-3 whitespace-nowrap " + align + "\">" + displayVal + "</td>";
-            }).join("");
+          window.currentStep3TableRows = rows;
+          window.currentStep3TableCols = cols;
+          window.renderStep3TableBody(rows, cols);
+        } else {
+          if (tbLoading) tbLoading.classList.remove("hidden");
+          if (tbContainer) tbContainer.classList.add("hidden");
+          if (tbEmpty) tbEmpty.classList.add("hidden");
 
-            var rowRisk = "🟢 KIỂM SOÁT TỐT";
-            var rowRiskClass = "text-emerald-800 bg-emerald-100";
-            if (r["M5"] === 0 || r["M5"] === "0") {
-              rowRisk = "🔴 BÁO ĐỘNG ĐỎ (Chạm Đáy M5)";
-              rowRiskClass = "text-[#8F60BF] bg-[#ECD8F2]";
-            } else if (r["M4"] !== undefined && r["M4"] !== null && r["M4"] !== "-") {
-              rowRisk = "🟡 CẢNH BÁO (Theo Dõi)";
-              rowRiskClass = "text-amber-800 bg-amber-100";
-            }
-
-            return "<tr class=\"hover:bg-[#FAF8FC] transition\">" +
-              "<td class=\"p-3 text-center text-[#5C5570] font-sans font-bold\">" + (idx + 1) + "</td>" +
-              cells +
-              "<td class=\"p-3 text-center whitespace-nowrap font-sans\"><span class=\"px-2.5 py-1 rounded-full text-xs font-bold " + rowRiskClass + "\">" + rowRisk + "</span></td>" +
-            "</tr>";
-          }).join("");
+          fetch("/api/cleansing/latest")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data && data.status === "success" && data.cleaned_sample && data.cleaned_sample.length > 0) {
+                window.currentCleansingPlanData = data;
+                window.renderStep3Table();
+              } else {
+                if (tbLoading) tbLoading.classList.add("hidden");
+                if (tbEmpty) tbEmpty.classList.remove("hidden");
+                if (subTitleEl) subTitleEl.textContent = "Chưa có dữ liệu sổ cái. Vui lòng tải tệp ở Bước 1.";
+              }
+            }).catch(function() {
+              if (tbLoading) tbLoading.classList.add("hidden");
+              if (tbEmpty) tbEmpty.classList.remove("hidden");
+            });
         }
       }
+    };
+
+    window.renderStep3TableBody = function(rows, cols) {
+      var s3Body = document.getElementById("step3-table-body");
+      if (!s3Body) return;
+
+      s3Body.innerHTML = rows.map(function(r, idx) {
+        var cells = cols.map(function(c, cIdx) {
+          var v = r[c];
+          var displayVal = (v === null || v === undefined || v === "") ? "-" : v;
+          var num = parseFloat(String(v).replace(/[^0-9.-]+/g, ""));
+          var isNumeric = !isNaN(num) && String(v).trim() !== "" && isFinite(num);
+
+          if (isNumeric && typeof v === "number") {
+            if (num >= 10000) {
+              displayVal = window.formatVND ? window.formatVND(num) : num.toLocaleString() + " ₫";
+            } else if (num % 1 !== 0) {
+              displayVal = num.toFixed(1);
+            } else {
+              displayVal = num.toString();
+            }
+          }
+
+          var align = (cIdx === 0) ? "text-left font-bold text-[#1E1B2E]" : (isNumeric ? "text-right font-mono text-[#1E1B2E]" : "text-left text-[#1E1B2E]");
+          return "<td class=\"p-3.5 whitespace-nowrap " + align + "\">" + displayVal + "</td>";
+        }).join("");
+
+        var auditStatus = r._audit_status || "ĐÃ CHUẨN HOÁ";
+        var rowRisk = "🟢 KIỂM SOÁT TỐT";
+        var rowRiskClass = "text-emerald-800 bg-emerald-100 border border-emerald-200";
+
+        var m5Val = r["M5"];
+        var m4Val = r["M4"];
+        if (m5Val !== undefined && (m5Val === 0 || m5Val === "0" || m5Val === 0.0 || m5Val === "0.0")) {
+          rowRisk = "🔴 BÁO ĐỘNG ĐỎ (0% M5)";
+          rowRiskClass = "text-[#8F60BF] bg-[#ECD8F2] border border-[#BEB6F2]";
+        } else if (m4Val !== undefined && (parseFloat(m4Val) < 20 || m4Val === "0")) {
+          rowRisk = "🟡 CẢNH BÁO (Rơi rụng M4)";
+          rowRiskClass = "text-amber-800 bg-amber-100 border border-amber-200";
+        }
+
+        return "<tr class=\"hover:bg-[#FAF6FD] transition divide-x divide-[#ECD8F2]/40 font-mono text-xs\">" +
+          "<td class=\"p-3.5 text-center text-[#5C5570] font-sans font-bold bg-[#FAF8FC]/50\">" + (idx + 1) + "</td>" +
+          cells +
+          "<td class=\"p-3.5 text-center whitespace-nowrap font-sans\"><span class=\"px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F2F5F3] text-[#4A5D57] border border-[#D5DDD8]\">" + auditStatus + "</span></td>" +
+          "<td class=\"p-3.5 text-center whitespace-nowrap font-sans\"><span class=\"px-2.5 py-1 rounded-full text-[11px] font-bold " + rowRiskClass + "\">" + rowRisk + "</span></td>" +
+        "</tr>";
+      }).join("");
+    };
+
+    window.filterStep3Table = function() {
+      var searchInput = document.getElementById("step3-table-search");
+      var query = (searchInput ? searchInput.value : "").toLowerCase().trim();
+      var rows = window.currentStep3TableRows || [];
+      var cols = window.currentStep3TableCols || [];
+      if (!query) {
+        window.renderStep3TableBody(rows, cols);
+        return;
+      }
+      var filtered = rows.filter(function(r) {
+        return cols.some(function(c) {
+          return String(r[c] || "").toLowerCase().indexOf(query) !== -1;
+        });
+      });
+      window.renderStep3TableBody(filtered, cols);
     };
 
     // CÁC HÀM XỬ LÝ MODAL DATASET, PHÂN TRANG VÀ XUẤT TỆP

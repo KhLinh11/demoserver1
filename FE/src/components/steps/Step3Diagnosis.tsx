@@ -13,12 +13,24 @@ interface Step3DiagnosisProps {
   diagnosisData?: any;
   onRefreshDiagnosis?: () => void;
   isRefreshing?: boolean;
+  cleansingPlanData?: any;
 }
 
 function parseMarkdown(md: string) {
   if (!md) return null;
 
-  const lines = md.split("\n");
+  const rawLines = md.split("\n");
+  const lines: string[] = [];
+  for (let l = 0; l < rawLines.length; l++) {
+    const cur = rawLines[l].trim();
+    if ((cur === "•" || cur === "-" || cur === "*") && l + 1 < rawLines.length) {
+      lines.push(`${cur} ${rawLines[l + 1].trim()}`);
+      l++;
+    } else {
+      lines.push(cur);
+    }
+  }
+
   const elements: React.ReactNode[] = [];
   let inTable = false;
   let tableHeaders: string[] = [];
@@ -27,12 +39,17 @@ function parseMarkdown(md: string) {
   const flushTable = (keyPrefix: number) => {
     if (!inTable) return;
     elements.push(
-      <div key={`table-wrap-${keyPrefix}`} className="overflow-x-auto my-4 rounded-2xl border border-[#ECD8F2] shadow-sm bg-white">
+      <div key={`table-wrap-${keyPrefix}`} className="overflow-x-auto my-5 rounded-2xl border border-[#ECD8F2] shadow-sm bg-white">
         <table className="w-full text-xs text-left border-collapse">
           <thead className="bg-[#FAF8FC] text-[#5C5570] font-bold border-b border-[#ECD8F2]">
             <tr>
               {tableHeaders.map((h, i) => (
-                <th key={i} className="p-3.5 whitespace-nowrap">
+                <th
+                  key={i}
+                  className={`p-3.5 whitespace-nowrap ${
+                    i === 0 ? "text-left" : i === tableHeaders.length - 1 ? "text-center" : "text-right"
+                  }`}
+                >
                   {h}
                 </th>
               ))}
@@ -40,36 +57,63 @@ function parseMarkdown(md: string) {
           </thead>
           <tbody className="divide-y divide-[#ECD8F2] font-mono text-[#1E1B2E]">
             {tableRows.map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-[#FAF6FD] transition">
+              <tr key={rIdx} className="hover:bg-[#FAF6FD] transition even:bg-[#FAF8FC]/40">
                 {row.map((cell, cIdx) => {
                   const txt = cell.trim();
-                  const isRed = txt.includes("BÁO ĐỘNG") || txt.includes("🔴") || txt.includes("RỦI RO CAO");
-                  const isYellow = txt.includes("CẢNH BÁO") || txt.includes("🟡");
-                  const isGreen = txt.includes("AN TOÀN") || txt.includes("🟢") || txt.includes("KIỂM SOÁT TỐT");
+                  const upper = txt.toUpperCase();
+                  const isRed =
+                    upper.includes("BÁO ĐỘNG") ||
+                    upper.includes("🔴") ||
+                    upper.includes("RỦI RO CAO") ||
+                    upper === "CAO" ||
+                    upper.includes("CHẠM ĐÁY") ||
+                    upper.includes("THÂM HỤT");
+                  const isYellow =
+                    upper.includes("CẢNH BÁO") ||
+                    upper.includes("🟡") ||
+                    upper === "TRUNG BÌNH" ||
+                    upper.includes("SUY GIẢM") ||
+                    upper.includes("THEO DÕI");
+                  const isGreen =
+                    upper.includes("AN TOÀN") ||
+                    upper.includes("🟢") ||
+                    upper.includes("KIỂM SOÁT TỐT") ||
+                    upper === "THẤP" ||
+                    upper === "TỐT";
+                  const isGray = txt === "-" || txt === "—" || txt === "N/A" || upper.includes("MỚI KHỞI TẠO");
 
                   return (
                     <td
                       key={cIdx}
-                      className={`p-3.5 ${
+                      className={`p-3.5 whitespace-nowrap ${
                         cIdx === 0
                           ? "text-left font-sans font-bold text-[#1E1B2E]"
-                          : "text-right font-medium"
+                          : isRed || isYellow || isGreen || isGray
+                          ? "text-center font-sans"
+                          : "text-right font-medium text-[#1E1B2E]"
                       }`}
                     >
                       {isRed ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF] border border-[#BEB6F2]">
-                          {txt}
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEE2E2] text-[#DC2626] border border-[#FCA5A5]">
+                          <span>🔴</span>
+                          <span>{txt.replace(/^[🔴\s*]+/, "")}</span>
                         </span>
                       ) : isYellow ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                          {txt}
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEF3C7] text-[#D97706] border border-[#FCD34D]">
+                          <span>🟡</span>
+                          <span>{txt.replace(/^[🟡\s*]+/, "")}</span>
                         </span>
                       ) : isGreen ? (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          {txt}
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#D1FAE5] text-[#059669] border border-[#6EE7B7]">
+                          <span>🟢</span>
+                          <span>{txt.replace(/^[🟢\s*]+/, "")}</span>
+                        </span>
+                      ) : isGray ? (
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-[#718096] bg-[#EDF2F7]">
+                          {txt === "-" || txt === "—" ? "—" : txt}
                         </span>
                       ) : (
-                        txt
+                        <span dangerouslySetInnerHTML={{ __html: txt.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#1E1B2E]">$1</strong>') }} />
                       )}
                     </td>
                   );
@@ -85,9 +129,8 @@ function parseMarkdown(md: string) {
     tableRows = [];
   };
 
-  lines.forEach((rawLine, idx) => {
-    const line = rawLine.trim();
-
+  lines.forEach((line, idx) => {
+    // 1. Table
     if (line.startsWith("|") && line.endsWith("|")) {
       const cells = line
         .slice(1, -1)
@@ -109,56 +152,144 @@ function parseMarkdown(md: string) {
 
     if (!line) return;
 
-    if (line.startsWith("# ")) {
+    // 2. Major 4 Executive Sections (1. / 2. / 3. / 4. or ## 1.)
+    const sectionMatch = line.match(/^(?:##?\s*)?(?:[🎯📊🚨💡🔍📈]\s*)?([1-4])\.\s*(.*)/);
+    if (sectionMatch) {
+      const sNum = sectionMatch[1];
+      const sTitle = sectionMatch[2].replace(/\*\*(.*?)\*\*/g, "$1").trim();
+      let icon = "🎯";
+      let badgeStyle = "bg-[#FAF6FD] border-[#BEB6F2] text-[#8F60BF]";
+      if (sNum === "1") {
+        icon = "🎯";
+        badgeStyle = "bg-[#FAF6FD] border-[#BEB6F2] text-[#8F60BF]";
+      } else if (sNum === "2") {
+        icon = "📊";
+        badgeStyle = "bg-[#EBF6FC] border-[#99D9F2] text-[#079DD9]";
+      } else if (sNum === "3") {
+        icon = "🚨";
+        badgeStyle = "bg-[#FDEEED] border-[#FCA5A5] text-[#D93848]";
+      } else if (sNum === "4") {
+        icon = "💡";
+        badgeStyle = "bg-[#E6F8F3] border-[#70D7B8] text-[#1E7E62]";
+      }
+
       elements.push(
-        <h2 key={idx} className="text-base sm:text-lg font-black text-[#1E1B2E] mt-6 mb-2 pb-2 border-b border-[#ECD8F2] flex items-center space-x-2">
+        <div key={idx} className="mt-7 mb-3 pt-4 border-t border-[#ECD8F2] first:mt-0 first:pt-0 first:border-0">
+          <div className="flex items-center space-x-3">
+            <span className={`w-8 h-8 rounded-xl border flex items-center justify-center text-sm shadow-2xs font-black ${badgeStyle}`}>
+              {icon}
+            </span>
+            <h2 className="text-base sm:text-lg font-black text-[#1E1B2E] tracking-tight">
+              {sNum}. {sTitle}
+            </h2>
+          </div>
+        </div>
+      );
+      return;
+    }
+
+    // 3. Subheadings
+    if (line.startsWith("## ")) {
+      elements.push(
+        <h2 key={idx} className="text-base font-black text-[#1E1B2E] mt-5 mb-2 pb-1.5 border-b border-[#ECD8F2] flex items-center space-x-2">
           <span className="w-2.5 h-2.5 rounded-full bg-[#8F60BF]" />
-          <span>{line.slice(2)}</span>
+          <span>{line.slice(3).replace(/\*\*(.*?)\*\*/g, "$1")}</span>
         </h2>
       );
-    } else if (line.startsWith("## ")) {
+      return;
+    }
+    if (line.startsWith("### ")) {
       elements.push(
-        <h3 key={idx} className="text-sm sm:text-base font-bold text-[#8F60BF] mt-4 mb-2 flex items-center space-x-1.5">
-          <i className="fa-solid fa-angle-right text-xs text-[#079DD9]" />
-          <span>{line.slice(3)}</span>
+        <h3 key={idx} className="text-xs sm:text-sm font-bold text-[#8F60BF] mt-3.5 mb-1.5 flex items-center space-x-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#079DD9]" />
+          <span>{line.slice(4).replace(/\*\*(.*?)\*\*/g, "$1")}</span>
         </h3>
       );
-    } else if (line.startsWith("### ")) {
-      elements.push(
-        <h4 key={idx} className="text-xs sm:text-sm font-bold text-[#1E1B2E] mt-3 mb-1">
-          {line.slice(4)}
-        </h4>
-      );
-    } else if (line.startsWith("- ") || line.startsWith("* ")) {
-      elements.push(
-        <div key={idx} className="flex items-start space-x-2 my-1.5 text-xs text-[#5C5570] leading-relaxed">
-          <span className="text-[#079DD9] font-bold text-sm leading-none shrink-0">•</span>
-          <span dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#1E1B2E] font-bold">$1</strong>') }} />
-        </div>
-      );
-    } else if (/^\d+\.\s/.test(line)) {
-      const match = line.match(/^(\d+)\.\s(.*)/);
-      if (match) {
+      return;
+    }
+
+    // 4. Blockquotes
+    if (line.startsWith(">")) {
+      const qText = line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>');
+      if (qText.includes("⚠️") || qText.includes("Cảnh Báo") || qText.includes("Báo Động")) {
         elements.push(
-          <div key={idx} className="flex items-start space-x-2.5 my-2 text-xs text-[#5C5570] leading-relaxed">
-            <span className="w-5 h-5 rounded-md bg-[#FAF6FD] border border-[#BEB6F2] text-[#8F60BF] font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">
-              {match[1]}
-            </span>
-            <span dangerouslySetInnerHTML={{ __html: match[2].replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#1E1B2E] font-bold">$1</strong>') }} />
+          <div key={idx} className="p-4 my-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border-l-4 border-[#D93848] text-xs text-[#991B1B] font-medium leading-relaxed shadow-2xs flex items-start space-x-3">
+            <i className="fa-solid fa-triangle-exclamation text-base text-[#D93848] shrink-0 mt-0.5" />
+            <div dangerouslySetInnerHTML={{ __html: qText }} />
           </div>
         );
+      } else if (qText.includes("💡") || qText.includes("Khuyến Nghị") || qText.includes("Đề Xuất")) {
+        elements.push(
+          <div key={idx} className="p-4 my-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border-l-4 border-emerald-500 text-xs text-emerald-900 font-medium leading-relaxed shadow-2xs flex items-start space-x-3">
+            <i className="fa-solid fa-lightbulb text-base text-emerald-600 shrink-0 mt-0.5" />
+            <div dangerouslySetInnerHTML={{ __html: qText }} />
+          </div>
+        );
+      } else {
+        elements.push(
+          <div key={idx} className="p-3.5 my-3 rounded-2xl bg-[#FAF6FD] border-l-4 border-[#8F60BF] text-xs text-[#1E1B2E] font-medium leading-relaxed shadow-2xs" dangerouslySetInnerHTML={{ __html: qText }} />
+        );
       }
-    } else if (line.startsWith(">")) {
+      return;
+    }
+
+    // 5. Divider
+    if (line === "---" || line === "***" || line === "___") {
+      elements.push(<div key={idx} className="my-5 border-b border-[#ECD8F2]" />);
+      return;
+    }
+
+    // 6. Bullets
+    if (/^[•\-\*\+]\s/.test(line)) {
+      const itemClean = line.replace(/^[•\-\*\+]\s+/, "");
+      const formatted = itemClean
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#1E1B2E] font-bold">$1</strong>')
+        .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]">$1</code>');
       elements.push(
-        <div key={idx} className="p-3.5 my-3 rounded-2xl bg-[#FAF6FD] border-l-4 border-[#8F60BF] text-xs text-[#1E1B2E] font-medium leading-relaxed">
-          {line.slice(1).trim()}
+        <div key={idx} className="flex items-start space-x-2.5 my-2 text-xs sm:text-sm text-[#4A5568] leading-relaxed">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#8F60BF] mt-2 shrink-0" />
+          <div className="flex-1" dangerouslySetInnerHTML={{ __html: formatted }} />
         </div>
       );
-    } else {
-      elements.push(
-        <p key={idx} className="text-xs sm:text-sm text-[#5C5570] leading-relaxed my-2" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#1E1B2E] font-bold">$1</strong>') }} />
-      );
+      return;
     }
+
+    // 7. Numbered items
+    const numMatch = line.match(/^(\d+)\.\s+(.*)/);
+    if (numMatch) {
+      const formatted = numMatch[2]
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#1E1B2E] font-bold">$1</strong>')
+        .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]">$1</code>');
+      elements.push(
+        <div key={idx} className="flex items-start space-x-2.5 my-2.5 text-xs sm:text-sm text-[#4A5568] leading-relaxed">
+          <span className="w-5 h-5 rounded-md bg-[#FAF6FD] border border-[#BEB6F2] text-[#8F60BF] font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+            {numMatch[1]}
+          </span>
+          <div className="flex-1" dangerouslySetInnerHTML={{ __html: formatted }} />
+        </div>
+      );
+      return;
+    }
+
+    // 8. Footnotes / Notes (*Lưu ý: ...*)
+    if (/^\*.*\*$/.test(line) || /^_.*_$/.test(line)) {
+      const noteContent = line.replace(/^[\*_]|[\*_]$/g, "");
+      elements.push(
+        <p key={idx} className="text-[11px] text-[#718096] italic my-2 flex items-center space-x-1.5">
+          <i className="fa-solid fa-circle-info text-[#079DD9]" />
+          <span>{noteContent}</span>
+        </p>
+      );
+      return;
+    }
+
+    // 9. Regular text
+    const pText = line
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-[#1E1B2E] font-bold">$1</strong>')
+      .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-[#FAF8FC] border border-[#ECD8F2] text-[#8F60BF] font-mono text-[11px]">$1</code>');
+    elements.push(
+      <p key={idx} className="text-xs sm:text-sm text-[#4A5568] leading-relaxed my-2" dangerouslySetInnerHTML={{ __html: pText }} />
+    );
   });
 
   flushTable(lines.length + 1);
@@ -174,8 +305,43 @@ export function Step3Diagnosis({
   diagnosisData,
   onRefreshDiagnosis,
   isRefreshing = false,
+  cleansingPlanData,
 }: Step3DiagnosisProps) {
   const [activeTab, setActiveTab] = useState<"ai" | "table">("ai");
+  const [tableSearch, setTableSearch] = useState<string>("");
+
+  const sampleRows = cleansingPlanData?.cleaned_sample || [];
+  const filteredSampleRows = tableSearch.trim()
+    ? sampleRows.filter((r: any) =>
+        (cleansingPlanData?.columns || []).some((c: string) =>
+          String(r[c] || "").toLowerCase().includes(tableSearch.toLowerCase().trim()),
+        ),
+      )
+    : sampleRows;
+
+  const handleExportCsv = () => {
+    if (!cleansingPlanData?.columns || !cleansingPlanData?.cleaned_sample) return;
+    const cols = [...cleansingPlanData.columns, "Trạng Thái Audit", "Hành Động Chuẩn Hoá"];
+    const csvContent =
+      "\uFEFF" +
+      [
+        cols.join(","),
+        ...cleansingPlanData.cleaned_sample.map((r: any) =>
+          [
+            ...cleansingPlanData.columns.map((c: string) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`),
+            `"${r._audit_status || "ĐÃ CHUẨN HOÁ"}"`,
+            `"${r._cleansing_action || "Bảo toàn"}"`,
+          ].join(","),
+        ),
+      ].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Cleaned_${cleansingPlanData.filename || "Data"}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const kpis = diagnosisData?.kpi_cards && diagnosisData.kpi_cards.length >= 3
     ? diagnosisData.kpi_cards
@@ -318,69 +484,187 @@ export function Step3Diagnosis({
       {/* Tab 2: Structured Data Table View */}
       {activeTab === "table" && (
         <div className="p-6 rounded-2xl bg-white border border-[#ECD8F2] shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#ECD8F2]">
-            <span className="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider">
-              Bảng dữ liệu đối soát theo phân khúc ({channels.length} đối tượng)
-            </span>
-          </div>
+          {cleansingPlanData?.columns && cleansingPlanData?.cleaned_sample && cleansingPlanData.cleaned_sample.length > 0 ? (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#ECD8F2] gap-3">
+                <div>
+                  <span className="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider flex items-center space-x-1.5">
+                    <i className="fa-solid fa-table text-[#8F60BF]" />
+                    <span>Bảng dữ liệu thực tế theo tệp đã tải</span>
+                  </span>
+                  <span className="text-xs text-[#5C5570] block mt-0.5">
+                    Hiển thị {filteredSampleRows.length} / {cleansingPlanData.cleaned_sample.length} bản ghi · {cleansingPlanData.columns.length} cột dữ liệu
+                  </span>
+                </div>
 
-          <div className="overflow-x-auto rounded-xl border border-[#ECD8F2]">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-[#FAF8FC] text-[#5C5570] font-semibold border-b border-[#ECD8F2]">
-                <tr>
-                  <th className="p-3">{activeDimension}</th>
-                  <th className="p-3 text-right">Doanh Thu Thô</th>
-                  <th className="p-3 text-right">Thực Thu Sau Đối Soát</th>
-                  <th className="p-3 text-center">Tỷ Lệ Hoàn (%)</th>
-                  <th className="p-3 text-right">Chi Phí Tiếp Thị / Vận Hành</th>
-                  <th className="p-3 text-right">Lợi Nhuận Đóng Góp</th>
-                  <th className="p-3 text-center">Đánh Giá Rủi Ro</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#ECD8F2]">
-                {channels.map((ch) => {
-                  const isLoss = ch.contribution_profit < 0;
-                  return (
-                    <tr key={ch.channel} className="hover:bg-[#FAF6FD] transition">
-                      <td className="p-3 font-semibold text-[#1E1B2E]">{ch.channel}</td>
-                      <td className="p-3 text-right font-mono font-medium text-[#1E1B2E]">
-                        {formatVND(ch.gross_revenue)}
-                      </td>
-                      <td className="p-3 text-right font-mono font-bold text-[#8F60BF]">
-                        {formatVND(ch.audited_net)}
-                      </td>
-                      <td className="p-3 text-center font-mono font-bold text-[#5C5570]">
-                        {ch.return_rate.toFixed(1)}%
-                      </td>
-                      <td className="p-3 text-right font-mono text-[#5C5570]">
-                        {formatVND(ch.ads_spend)}
-                      </td>
-                      <td
-                        className={`p-3 text-right font-mono font-bold ${
-                          isLoss ? "text-[#8F60BF]" : "text-[#079DD9]"
-                        }`}
-                      >
-                        {formatVND(ch.contribution_profit)}
-                      </td>
-                      <td className="p-3 text-center">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            isLoss
-                              ? "bg-[#ECD8F2] text-[#8F60BF]"
-                              : ch.return_rate > 15
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-emerald-100 text-emerald-800"
-                          }`}
-                        >
-                          {isLoss ? "THÂM HỤT NẶNG" : ch.return_rate > 15 ? "RỦI RO HOÀN CAO" : "AN TOÀN / HIỆU QUẢ"}
-                        </span>
-                      </td>
+                <div className="flex items-center space-x-2">
+                  <div className="relative">
+                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-[#5C5570]" />
+                    <input
+                      type="text"
+                      value={tableSearch}
+                      onChange={(e) => setTableSearch(e.target.value)}
+                      placeholder="Tìm kiếm nhanh..."
+                      className="pl-8 pr-3 py-1.5 rounded-xl border border-[#ECD8F2] bg-[#FAF8FC] text-xs text-[#1E1B2E] focus:outline-none focus:border-[#8F60BF] w-44 sm:w-52 transition"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportCsv}
+                    className="px-3 py-1.5 rounded-xl bg-[#FAF6FD] hover:bg-[#ECD8F2] text-[#8F60BF] border border-[#BEB6F2] text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer"
+                    title="Tải tệp CSV sạch"
+                  >
+                    <i className="fa-solid fa-file-arrow-down" />
+                    <span>Xuất CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-[#ECD8F2] shadow-2xs">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#FAF8FC] text-[#5C5570] font-bold border-b border-[#ECD8F2]">
+                    <tr>
+                      <th className="p-3.5 w-14 text-center whitespace-nowrap">STT</th>
+                      {cleansingPlanData.columns.map((c: string, i: number) => (
+                        <th key={i} className="p-3.5 whitespace-nowrap">
+                          {c}
+                        </th>
+                      ))}
+                      <th className="p-3.5 text-center whitespace-nowrap">Trạng Thái Audit</th>
+                      <th className="p-3.5 text-center whitespace-nowrap">Đánh Giá Rủi Ro</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECD8F2] font-mono">
+                    {filteredSampleRows.map((r: any, idx: number) => {
+                      let rowRisk = "🟢 KIỂM SOÁT TỐT";
+                      let rowRiskClass = "text-emerald-800 bg-emerald-100 border border-emerald-200";
+                      if (r["M5"] === 0 || r["M5"] === "0" || r["M5"] === "0.0%" || r["M5"] === 0.0 || r["M5"] === "0.0") {
+                        rowRisk = "🔴 BÁO ĐỘNG ĐỎ (Chạm Đáy M5)";
+                        rowRiskClass = "text-[#8F60BF] bg-[#ECD8F2] border border-[#BEB6F2]";
+                      } else if (r["M4"] !== undefined && r["M4"] !== null && r["M4"] !== "-" && r["M4"] !== "—") {
+                        rowRisk = "🟡 CẢNH BÁO (Rơi rụng M4)";
+                        rowRiskClass = "text-amber-800 bg-amber-100 border border-amber-200";
+                      }
+
+                      const auditStatus = r._audit_status || "ĐÃ CHUẨN HOÁ";
+
+                      return (
+                        <tr key={idx} className="hover:bg-[#FAF6FD] transition even:bg-[#FAF8FC]/40 divide-x divide-[#ECD8F2]/40">
+                          <td className="p-3.5 text-center font-sans font-bold text-[#5C5570] bg-[#FAF8FC]/50">{idx + 1}</td>
+                          {cleansingPlanData.columns.map((col: string, cIdx: number) => {
+                            const val = r[col];
+                            const num = parseFloat(String(val).replace(/[^0-9.-]+/g, ""));
+                            const isNumeric = !isNaN(num) && String(val).trim() !== "" && isFinite(num);
+                            let displayVal = val === null || val === undefined || val === "" ? "-" : val;
+                            if (isNumeric && typeof val === "number") {
+                              if (num >= 10000) {
+                                displayVal = formatVND(num);
+                              } else if (num % 1 !== 0) {
+                                displayVal = num.toFixed(1);
+                              } else {
+                                displayVal = num.toString();
+                              }
+                            }
+
+                            return (
+                              <td
+                                key={cIdx}
+                                className={`p-3.5 whitespace-nowrap ${
+                                  cIdx === 0
+                                    ? "text-left font-sans font-bold text-[#1E1B2E]"
+                                    : isNumeric
+                                    ? "text-right font-mono text-[#1E1B2E]"
+                                    : "text-left font-sans text-[#1E1B2E]"
+                                }`}
+                              >
+                                {displayVal}
+                              </td>
+                            );
+                          })}
+                          <td className="p-3.5 text-center whitespace-nowrap font-sans">
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#F2F5F3] text-[#4A5D57] border border-[#D5DDD8]">
+                              {auditStatus}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-center whitespace-nowrap font-sans">
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${rowRiskClass}`}>
+                              {rowRisk}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between pb-3 border-b border-[#ECD8F2]">
+                <span className="text-xs font-bold text-[#1E1B2E] uppercase tracking-wider">
+                  Bảng dữ liệu đối soát theo phân khúc ({channels.length} đối tượng)
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-[#ECD8F2]">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#FAF8FC] text-[#5C5570] font-semibold border-b border-[#ECD8F2]">
+                    <tr>
+                      <th className="p-3">{activeDimension}</th>
+                      <th className="p-3 text-right">Doanh Thu Thô</th>
+                      <th className="p-3 text-right">Thực Thu Sau Đối Soát</th>
+                      <th className="p-3 text-center">Tỷ Lệ Hoàn (%)</th>
+                      <th className="p-3 text-right">Chi Phí Tiếp Thị / Vận Hành</th>
+                      <th className="p-3 text-right">Lợi Nhuận Đóng Góp</th>
+                      <th className="p-3 text-center">Đánh Giá Rủi Ro</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#ECD8F2]">
+                    {channels.map((ch) => {
+                      const isLoss = ch.contribution_profit < 0;
+                      return (
+                        <tr key={ch.channel} className="hover:bg-[#FAF6FD] transition">
+                          <td className="p-3 font-semibold text-[#1E1B2E]">{ch.channel}</td>
+                          <td className="p-3 text-right font-mono font-medium text-[#1E1B2E]">
+                            {formatVND(ch.gross_revenue)}
+                          </td>
+                          <td className="p-3 text-right font-mono font-bold text-[#8F60BF]">
+                            {formatVND(ch.audited_net)}
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold text-[#5C5570]">
+                            {ch.return_rate.toFixed(1)}%
+                          </td>
+                          <td className="p-3 text-right font-mono text-[#5C5570]">
+                            {formatVND(ch.ads_spend)}
+                          </td>
+                          <td
+                            className={`p-3 text-right font-mono font-bold ${
+                              isLoss ? "text-[#8F60BF]" : "text-[#079DD9]"
+                            }`}
+                          >
+                            {formatVND(ch.contribution_profit)}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                isLoss
+                                  ? "bg-[#ECD8F2] text-[#8F60BF]"
+                                  : ch.return_rate > 15
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {isLoss ? "THÂM HỤT NẶNG" : ch.return_rate > 15 ? "RỦI RO HOÀN CAO" : "AN TOÀN / HIỆU QUẢ"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
 

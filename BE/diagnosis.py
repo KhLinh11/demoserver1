@@ -113,11 +113,18 @@ Yêu cầu trả về định dạng JSON thuần với cấu trúc:
       "subtext": "Mô tả ngắn gọn"
     }}
   ],
-  "markdown_report": "Nội dung bài báo cáo phân tích toàn diện bằng Markdown chuẩn GitHub đẹp mắt bằng tiếng Việt, gồm:
-# 1. Chẩn Đoán Tổng Quan & Điểm Nóng Dữ Liệu (Executive Summary)
-# 2. Bảng Phân Tích Ma Trận & Đối Soát Số Liệu Thực Tế (BẮT BUỘC có bảng Markdown | Cột 1 | Cột 2 | có căn lề, format số liệu đẹp, có cột Đánh giá rủi ro)
-# 3. Nhận Diện Rủi Ro Dòng Tiền & Điểm Gãy / Thâm Hụt (Bóc tách nguyên nhân)
-# 4. Đề Xuất Chiến Lược & Kế Hoạch Hành Động Ngăn Chặn Rò Rỉ"
+  "markdown_report": "Nội dung bài báo cáo phân tích toàn diện bằng Markdown chuẩn GitHub CỰC KỲ ĐẸP VÀ CHUYÊN NGHIỆP bằng tiếng Việt.
+
+QUY TẮC ĐỊNH DẠNG MARKDOWN BẮT BUỘC:
+1. BẮT BUỘC sử dụng chính xác 4 tiêu đề chính cấp 2 với icon:
+   ## 🎯 1. Chẩn Đoán Tổng Quan & Điểm Nóng Dữ Liệu
+   ## 📊 2. Bảng Phân Tích Ma Trận & Đối Soát Số Liệu Thực Tế
+   ## 🚨 3. Nhận Diện Rủi Ro Dòng Tiền & Điểm Gãy / Thâm Hụt
+   ## 💡 4. Đề Xuất Chiến Lược & Kế Hoạch Hành Động
+2. Trong Mục 1: Phân tích súc tích, BẮT BUỘC có khối trích dẫn: `> ⚠️ **Cảnh Báo Kiểm Toán:** [nhận định rủi ro then chốt nhất]`.
+3. Trong Mục 2: BẮT BUỘC có bảng Markdown chuẩn GitHub `| Cột 1 | Cột 2 | ... | Đánh giá rủi ro |`. Cột 'Đánh giá rủi ro' BẮT BUỘC dùng nhãn emoji: `🔴 BÁO ĐỘNG ĐỎ`, `🟡 CẢNH BÁO`, `🟢 AN TOÀN`. Các cột số liệu phải căn lề, format đẹp. Dưới bảng có dòng chú thích in nghiêng `*Lưu ý: ...*`.
+4. Trong Mục 3: Phân tích bóc tách các tầng nguyên nhân, dùng gạch đầu dòng chuẩn `- **[Tên rủi ro]:** [Phân tích số liệu và tác động tài chính]`. Không để dấu chấm đầu dòng rỗng.
+5. Trong Mục 4: Chia giải pháp rõ ràng theo lộ trình (Ngắn hạn - Trung hạn), dùng gạch đầu dòng `- **[Hành động]:** [Mô tả cụ thể và KPI kỳ vọng]`, kèm khối trích dẫn: `> 💡 **Khuyến Nghị Tài Chính:** [lời khuyên chốt hạ chiến lược]`."
 }}
 
 TUYỆT ĐỐI KHÔNG thêm bất kỳ code block ```json hay markdown bao bọc bên ngoài JSON. Chỉ trả về chuỗi JSON thuần.
@@ -199,20 +206,19 @@ def build_heuristic_diagnosis(
             }
         ]
 
-        markdown_report = f"""# 1. Chẩn Đoán Tổng Quan & Điểm Nóng Dữ Liệu
+        markdown_report = f"""## 🎯 1. Chẩn Đoán Tổng Quan & Điểm Nóng Dữ Liệu (Executive Summary)
 
 Tệp dữ liệu `{filename}` được nhận diện là **Ma Trận Giữ Chân Khách Hàng (Cohort Retention Matrix)** gồm **{total_rows} chu kỳ** với các mốc đánh giá từ $M_0$ đến $M_5$.
 
-### Điểm sáng tăng trưởng:
-- Tốc độ gia tăng khách hàng mới đạt mức ấn tượng qua từng tháng.
-- Tỷ lệ giữ chân tháng đầu tiên ($M_1$) duy trì ở mức cao (**{avg_m1_ret}**), chứng minh độ phù hợp sản phẩm - thị trường (Product-Market Fit) ban đầu rất tốt.
+> ⚠️ **Cảnh Báo Kiểm Toán:** Tỷ lệ rời rụng (churn) diễn ra dốc đứng từ mốc $M_3$ trở đi. Đặc biệt tại chu kỳ $M_5$, số lượng khách hàng hoạt động chạm mức 0, gây nguy cơ bốc hơi 100% doanh thu định kỳ từ tệp khách hàng cũ.
 
-### Báo động đỏ dòng tiền:
-- Tỷ lệ rời rụng (churn) diễn ra dốc đứng từ mốc $M_3$ trở đi. Đặc biệt tại chu kỳ $M_5$, số lượng khách hàng hoạt động chạm mức 0, gây nguy cơ bốc hơi 100% doanh thu định kỳ từ tệp khách hàng cũ.
+### 📈 Điểm sáng tăng trưởng:
+- **Tốc độ nạp mới:** Tốc độ gia tăng khách hàng mới đạt mức ấn tượng qua từng tháng.
+- **Độ gắn kết ban đầu:** Tỷ lệ giữ chân tháng đầu tiên ($M_1$) duy trì ở mức cao (**{avg_m1_ret}**), chứng minh độ phù hợp sản phẩm - thị trường ban đầu rất tốt.
 
 ---
 
-# 2. Bảng Phân Tích Ma Trận Giữ Chân & Tỷ Lệ Thực Tế
+## 📊 2. Bảng Phân Tích Ma Trận Giữ Chân & Tỷ Lệ Thực Tế
 
 | Tháng Cohort | Khách Mới | M0 | M1 (%) | M2 (%) | M3 (%) | M4 (%) | M5 (%) | Đánh Giá Rủi Ro |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -221,22 +227,27 @@ Tệp dữ liệu `{filename}` được nhận diện là **Ma Trận Giữ Châ
 | **2026-03** | 160 | 160 | 85.0% | 72.5% | 61.3% | — | — | 🟡 CẢNH BÁO (Theo dõi M3) |
 | **2026-04** | 190 | 190 | 85.3% | 72.1% | — | — | — | 🟢 AN TOÀN ($M_1 \ge 85\%$) |
 | **2026-05** | 220 | 220 | 85.0% | — | — | — | — | 🟢 AN TOÀN ($M_1 \ge 85\%$) |
-| **2026-06** | 250 | 250 | — | — | — | — | — | ⚪ MỚI KHỞI TẠO ($M_0$) |
+| **2026-06** | 250 | 250 | — | — | — | — | — | 🟢 AN TOÀN |
+
+*Lưu ý: Dấu gạch ngang (—) thể hiện các nhóm cohort chưa phát sinh đủ chu kỳ thời gian tự nhiên.*
 
 ---
 
-# 3. Nhận Diện Rủi Ro Dòng Tiền & Điểm Gãy Khách Hàng
+## 🚨 3. Nhận Diện Rủi Ro Dòng Tiền & Điểm Gãy Khách Hàng
 
-1. **Hiệu ứng "Bình rò rỉ" (Leaky Bucket):** Doanh nghiệp liên tục chi tiền thu hút khách mới (từ 100 lên 250 khách/tháng) nhưng không giữ được khách sau 4 tháng. Điều này khiến chi phí CAC (Customer Acquisition Cost) bị lãng phí trầm trọng.
-2. **Quy luật sụt giảm 30-day Retention:** Mỗi chu kỳ ghi nhận mức suy giảm đều đặn từ 10% đến 13%. Việc thiếu vắng các chương trình chăm sóc định kỳ khiến khách hàng lãng quên thương hiệu sau 90 ngày.
+- **Hiệu ứng "Bình rò rỉ" (Leaky Bucket):** Doanh nghiệp liên tục chi tiền thu hút khách mới (tăng 150%) nhưng không giữ được khách sau 4 tháng. Điều này khiến chi phí CAC (Customer Acquisition Cost) bị lãng phí trầm trọng.
+- **Quy luật sụt giảm 30-day Retention:** Mỗi chu kỳ ghi nhận mức suy giảm đều đặn từ 10% đến 13%. Việc thiếu vắng các chương trình chăm sóc định kỳ khiến khách hàng lãng quên thương hiệu sau 90 ngày.
+- **Đứt gãy dòng tiền tại M5:** Nhóm thuần tập 2026-01 suy giảm đột ngột về 0 tại mốc $M_5$, cho thấy toàn bộ doanh thu định kỳ từ nhóm này đã biến mất hoàn toàn.
 
 ---
 
-# 4. Đề Xuất Chiến Lược & Kế Hoạch Hành Động
+## 💡 4. Đề Xuất Chiến Lược & Kế Hoạch Hành Động
 
-- **Thiết lập chuỗi kích hoạt lại (Re-activation Campaign) tại ngày thứ 75 ($M_2 \rightarrow M_3$):** Gửi voucher cá nhân hóa và gói chăm sóc bảo dưỡng trước khi khách rơi vào trạng thái ngừng tương tác.
+- **Chiến dịch tái kích hoạt ngày thứ 75 (Re-activation M2 ➔ M3):** Gửi voucher cá nhân hóa và gói chăm sóc bảo dưỡng trước khi khách rơi vào trạng thái ngừng tương tác.
 - **Xây dựng chương trình Hội viên Khách hàng Thân thiết (Loyalty Program):** Tạo động lực tích điểm để kéo dài thời gian sống của khách qua ngưỡng $M_4$.
-- **Theo dõi sát cohort 2026-02 sắp bước vào chu kỳ $M_5$:** Ngăn chặn lặp lại tình trạng về 0 như cohort 2026-01.
+- **Theo dõi sát cohort 2026-02 sắp bước vào chu kỳ $M_5$:** Áp dụng can thiệp sớm ngay từ tháng này để ngăn chặn lặp lại tình trạng về 0 như cohort 2026-01.
+
+> 💡 **Khuyến Nghị Tài Chính:** Cần dịch chuyển 15-20% ngân sách tiếp thị từ tìm kiếm khách mới sang chăm sóc tệp khách hàng cũ để tối ưu hóa tỷ suất lợi nhuận trên chi phí (ROAS) và chỉ số LTV/CAC.
 """
 
     else:
