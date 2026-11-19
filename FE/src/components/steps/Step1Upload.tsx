@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   RedCloseBadge,
   YtPlusIcon,
@@ -40,6 +41,47 @@ export function Step1Upload({
   const handleFile = (file: File) => {
     setErrorMsg("");
     setSelectedFileName(file.name);
+
+    const isExcel = /\.(xlsx|xls|numbers)$/i.test(file.name);
+
+    if (isExcel) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const buffer = e.target?.result as ArrayBuffer;
+          if (!buffer) {
+            setErrorMsg("Không thể đọc nội dung tệp Excel.");
+            return;
+          }
+          const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
+          const firstSheet = wb.SheetNames[0];
+          if (!firstSheet) {
+            setErrorMsg("Tệp Excel không chứa trang tính (sheet) nào.");
+            return;
+          }
+          const ws = wb.Sheets[firstSheet];
+          const csvText = XLSX.utils.sheet_to_csv(ws);
+          if (!csvText || !csvText.trim()) {
+            setErrorMsg("Trang tính rỗng, không có dữ liệu giao dịch.");
+            return;
+          }
+
+          const res = onFileLoaded(csvText, file.name, file);
+          if (!res.success && res.error) {
+            setErrorMsg(res.error);
+            setSelectedFileName("");
+          }
+        } catch (err) {
+          setErrorMsg("Lỗi khi đọc tệp Excel: " + (err as Error).message);
+          setSelectedFileName("");
+        }
+      };
+      reader.onerror = () => {
+        setErrorMsg("Lỗi khi đọc tệp.");
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {

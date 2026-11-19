@@ -880,8 +880,13 @@
         var rowCogs = (cogsCol !== -1 && rowRaw[cogsCol] !== undefined) ? parseFloat(String(rowRaw[cogsCol]).replace(/[^0-9.-]+/g, "")) : (rowGross * 0.55);
         if (isNaN(rowCogs)) rowCogs = rowGross * 0.55;
 
-        var rowRet = (retCol !== -1 && rowRaw[retCol] !== undefined) ? parseFloat(String(rowRaw[retCol]).replace(/[^0-9.-]+/g, "")) : 0;
-        if (isNaN(rowRet)) rowRet = 0;
+        var rawRetStr = (retCol !== -1 && rowRaw[retCol] !== undefined) ? String(rowRaw[retCol]).trim().toLowerCase() : "";
+        var rowRet = 0;
+        if (rawRetStr === "có" || rawRetStr === "yes" || rawRetStr === "true" || rawRetStr === "1") {
+          rowRet = rowGross;
+        } else {
+          rowRet = parseFloat(rawRetStr.replace(/[^0-9.-]+/g, "")) || 0;
+        }
 
         var rowDays = (daysCol !== -1 && rowRaw[daysCol] !== undefined) ? parseInt(String(rowRaw[daysCol]).replace(/[^0-9]+/g, "")) : 0;
         if (isNaN(rowDays)) rowDays = 0;
@@ -1134,42 +1139,54 @@
 
     // Phân giải Excel dự phòng qua backend nếu thư viện client-side bị chặn
     window.parseExcelFallback = function(file) {
-      var reader = new FileReader();
-      reader.onload = function(evt) {
-        var b64 = (evt.target.result || "").split(',')[1];
-        fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            files: [{ name: file.name, content_base64: b64 }]
-          })
-        })
-        .then(function(res) {
-          if (!res.ok) throw new Error("Backend response error");
-          return res.json();
-        })
-        .then(function(state) {
-          if (state && state.workflow && state.workflow.step2_cleaned) {
-            var records = state.workflow.step2_cleaned.records || [];
-            if (records.length > 0) {
-              window.uploadedMasterDataset = records;
-              window.originalRawDatasetBackup = JSON.parse(JSON.stringify(records));
-              masterCleanedDataset = records;
-              window.currentEnterpriseRowCount = records.length;
-              window.startDataScanningAndProceed();
-              return;
+      var fd = new FormData();
+      fd.append("file", file);
+      fd.append("company_name", "Công ty Cổ phần Gia dụng Gia Hòa");
+      fd.append("painpoints", "Kiểm toán đối soát dữ liệu bán hàng");
+
+      fetch('/api/runs', {
+        method: 'POST',
+        body: fd
+      })
+      .then(function(res) {
+        if (!res.ok) return res.json().then(function(j) { throw new Error(j.detail || "Lỗi backend đọc file"); });
+        return res.json();
+      })
+      .then(function(runInfo) {
+        if (runInfo && runInfo.id) {
+          window.currentBackendRunId = runInfo.id;
+          return fetch('/api/runs/' + runInfo.id + '/export/csv').then(function(r) { return r.text(); });
+        }
+        throw new Error("Không nhận được mã lần chạy từ máy chủ.");
+      })
+      .then(function(csvText) {
+        var lines = (csvText || "").replace(/^\uFEFF/, "").split(/\r\n|\r|\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+        if (lines.length > 1) {
+          function parseCSVLine(line, d) {
+            var res = [];
+            var cur = '';
+            var inQ = false;
+            for (var p = 0; p < line.length; p++) {
+              var ch = line[p];
+              if (ch === '"') {
+                if (inQ && line[p + 1] === '"') { cur += '"'; p++; } else { inQ = !inQ; }
+              } else if (ch === d && !inQ) { res.push(cur.trim()); cur = ''; } else { cur += ch; }
             }
+            res.push(cur.trim());
+            return res;
           }
-          throw new Error("Không có bản ghi");
-        })
-        .catch(function(e) {
-          window.showValidationWarning(
-            "<strong>Không thể đọc trực tiếp tệp Excel này!</strong><br><br>" +
-            "Vui lòng xuất bảng tính sang <strong>CSV (.csv)</strong> (trong Excel hoặc Numbers: Chọn <em>Tệp &rarr; Xuất sang &rarr; CSV</em>) rồi kéo thả file vào để hệ thống phân tích toàn bộ không giới hạn dòng!"
-          );
-        });
-      };
-      reader.readAsDataURL(file);
+          var rows = lines.map(function(l) { return parseCSVLine(l, ','); });
+          window.parseAndLoadMatrix(rows, file.name, file.size);
+        } else {
+          throw new Error("Tệp không có dữ liệu giao dịch.");
+        }
+      })
+      .catch(function(e) {
+        window.showValidationWarning(
+          "<strong>Không thể đọc trực tiếp tệp Excel này:</strong> " + e.message + "<br><br>" +
+          "Vui lòng xuất bảng tính sang <strong>CSV (.csv)</strong> (trong Excel hoặc Numbers: Chọn <em>Tệp &rarr; Xuất sang &rarr; CSV</em>) rồi kéo thả file vào để hệ thống phân tích tức thì!"
+        );
+      });
     };
 
     // ĐỒNG BỘ TRỰC TUYẾN TỪ GOOGLE SHEETS KHÔNG GIỚI HẠN SỐ DÒNG
@@ -2326,18 +2343,18 @@
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="p-5 rounded-2xl bg-white border border-[#BEB6F2] panel-shadow">
               <div class="text-xs font-bold text-[#5C5570] uppercase">Hoàn trả trễ ngoài 12 ngày</div>
-              <div class="text-2xl sm:text-3xl font-extrabold font-mono text-[#8F60BF] mt-1.5">72.57M ₫</div>
-              <div class="text-xs text-[#5C5570] mt-1">64.3% giá trị hoàn dồn sau ngày chốt sổ</div>
+              <div id="step3-card-ret-late" class="text-2xl sm:text-3xl font-extrabold font-mono text-[#8F60BF] mt-1.5">72.57M ₫</div>
+              <div id="step3-card-ret-late-sub" class="text-xs text-[#5C5570] mt-1">64.3% giá trị hoàn dồn sau ngày chốt sổ</div>
             </div>
             <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow">
               <div class="text-xs font-bold text-[#5C5570] uppercase">Xói mòn từ voucher</div>
-              <div class="text-2xl sm:text-3xl font-extrabold font-mono text-[#8F60BF] mt-1.5">84.52M ₫</div>
-              <div class="text-xs text-[#5C5570] mt-1">Chiết khấu thực tế vượt trần 26.2%</div>
+              <div id="step3-card-voucher" class="text-2xl sm:text-3xl font-extrabold font-mono text-[#8F60BF] mt-1.5">84.52M ₫</div>
+              <div id="step3-card-voucher-sub" class="text-xs text-[#5C5570] mt-1">Chiết khấu thực tế vượt trần 26.2%</div>
             </div>
             <div class="p-5 rounded-2xl bg-white border border-[#99D9F2] panel-shadow">
               <div class="text-xs font-bold text-[#5C5570] uppercase">Hao hụt xử lý kho</div>
-              <div class="text-2xl sm:text-3xl font-extrabold font-mono text-[#079DD9] mt-1.5">15.72M ₫</div>
-              <div class="text-xs text-[#079DD9] font-semibold mt-1">Phí đóng gói lại 15k &amp; vỏ hộp</div>
+              <div id="step3-card-damaged" class="text-2xl sm:text-3xl font-extrabold font-mono text-[#079DD9] mt-1.5">15.72M ₫</div>
+              <div id="step3-card-damaged-sub" class="text-xs text-[#079DD9] font-semibold mt-1">Phí đóng gói lại 15k &amp; vỏ hộp</div>
             </div>
           </div>
 
@@ -4065,6 +4082,15 @@
       if (!s3Body) return;
 
       var analytics = window.computeDynamicAnalytics();
+
+      // Cập nhật động số liệu các thẻ tóm tắt trên Bước 3 theo dữ liệu thực tế
+      var elLate = document.getElementById('step3-card-ret-late');
+      var elVoucher = document.getElementById('step3-card-voucher');
+      var elDamaged = document.getElementById('step3-card-damaged');
+      if (elLate && analytics) elLate.textContent = (analytics.totalReturnsLate / 1000000).toFixed(2) + "M ₫";
+      if (elVoucher && analytics) elVoucher.textContent = (analytics.totalVoucher / 1000000).toFixed(2) + "M ₫";
+      if (elDamaged && analytics) elDamaged.textContent = (analytics.totalDamagedLoss / 1000000).toFixed(2) + "M ₫";
+
       var topic = window.currentAuditTopic || 'all';
 
       if (topic === 'leakage') {

@@ -12,6 +12,17 @@ export function parseCsvRows(text: string): string[][] {
   // Strip BOM if present
   const cleanText = text.replace(/^\uFEFF/, "");
   const lines = cleanText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  // Tự động nhận diện phân cách: dấu phẩy (,), dấu chấm phẩy (;), hoặc tab (\t)
+  let delim = ",";
+  const firstLine = lines[0];
+  const countComma = (firstLine.match(/,/g) || []).length;
+  const countSemi = (firstLine.match(/;/g) || []).length;
+  const countTab = (firstLine.match(/\t/g) || []).length;
+  if (countTab > countComma && countTab > countSemi) delim = "\t";
+  else if (countSemi > countComma) delim = ";";
+
   return lines.map((line) => {
     const row: string[] = [];
     let insideQuotes = false;
@@ -19,8 +30,13 @@ export function parseCsvRows(text: string): string[][] {
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
-        insideQuotes = !insideQuotes;
-      } else if (ch === "," && !insideQuotes) {
+        if (insideQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          insideQuotes = !insideQuotes;
+        }
+      } else if (ch === delim && !insideQuotes) {
         row.push(current.trim().replace(/^"|"$/g, ""));
         current = "";
       } else {

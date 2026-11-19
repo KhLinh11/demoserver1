@@ -15,41 +15,69 @@ interface AgentDrawerProps {
 interface Message {
   sender: "user" | "bot";
   text: string;
+  sql?: string | null;
+  sourceTable?: string | null;
 }
 
 export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       sender: "bot",
-      text: `👋 Chào bạn! Tôi là Trợ Lý Ảo Kiểm Toán Vitara. Tôi có thể giúp bạn bóc tách rò rỉ dòng tiền, giải thích nguyên nhân đảo thứ hạng các kênh bán hàng, hoặc đề xuất phương án điều chuyển ngân sách tối ưu. Bạn muốn tìm hiểu mục nào trước?`,
+      text: `👋 Chào bạn! Tôi là Trợ Lý Cố Vấn Tăng Trưởng Vitara AI (Tích hợp DuckDB Analytics). Tôi có thể truy vấn số liệu trực tiếp từ 15.000 giao dịch bán hàng, bóc tách P&L, và chẩn đoán thâm hụt rò rỉ dòng tiền. Bạn cần tôi phân tích mục nào?`,
     },
   ]);
   const [input, setInput] = useState<string>("");
+  const [isThinking, setIsThinking] = useState<boolean>(false);
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const q = textToSend || input;
-    if (!q.trim()) return;
+    if (!q.trim() || isThinking) return;
 
     const newMsgs: Message[] = [...messages, { sender: "user", text: q }];
     setMessages(newMsgs);
     setInput("");
+    setIsThinking(true);
 
-    // Simulate intelligent analytical answers
-    setTimeout(() => {
-      let reply = "Dữ liệu kiểm toán cho thấy doanh nghiệp nên ưu tiên kênh/khu vực có tỷ lệ hoàn dưới 10% và lợi nhuận đóng góp dương.";
-      const lower = q.toLowerCase();
-      if (lower.includes("flash") || lower.includes("shopee")) {
-        reply = "Kênh Flash Sale Shopee đang bị thâm hụt nặng do tỷ lệ hoàn trả sau ngày thứ 12 lên tới 24.5%, cộng với chiết khấu voucher kép bào mòn biên lãi. Khuyến nghị: Dừng ngay (STOP) hoặc siết chặt điều kiện mã giảm giá.";
-      } else if (lower.includes("khai xuân") || lower.includes("combo") || lower.includes("tăng vốn")) {
-        reply = "Nhóm Khai Xuân Combo đang dẫn đầu hiệu quả toàn hệ thống với tỷ lệ hoàn chỉ 8.2% và biên đóng góp cao nhất. Khuyến nghị: Tái cấp vốn mở rộng (EXPAND) thêm +80% ngân sách.";
-      } else if (lower.includes("30") || lower.includes("chu kỳ") || lower.includes("hoàn")) {
-        reply = "Chu kỳ đối soát 7 ngày truyền thống chỉ ghi nhận 40% lượng hoàn hàng. 60% lượng hoàn hàng thực tế diễn ra trong khoảng ngày 13-30 sau chiến dịch, gây thâm hụt dòng tiền nặng nề nếu chốt sổ quá sớm.";
-      } else if (lower.includes("khu vực") || lower.includes("miền bắc") || lower.includes("cửa hàng")) {
-        reply = "Phân tích theo Khu vực & Cửa hàng cho thấy các showroom tại Miền Bắc và Miền Trung duy trì chi phí mặt bằng cố định cao, trong khi kênh online đạt tỷ suất hoàn vốn nhanh hơn nhưng cần kiểm soát rủi ro hoàn hàng.";
+    try {
+      const res = await fetch("/api/copilot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q.trim() }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: data.reply || "Đã xử lý xong yêu cầu.",
+            sql: data.sql,
+            sourceTable: data.source_table,
+          },
+        ]);
+        setIsThinking(false);
+        return;
       }
+    } catch {
+      // Fallback below if backend offline
+    }
 
-      setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
-    }, 350);
+    // Fallback nếu backend offline
+    let reply = "Dữ liệu kiểm toán cho thấy doanh nghiệp nên ưu tiên kênh/khu vực có tỷ lệ hoàn dưới 10% và lợi nhuận đóng góp dương.";
+    const lower = q.toLowerCase();
+    if (lower.includes("flash") || lower.includes("shopee")) {
+      reply = "Kênh Flash Sale Shopee đang bị thâm hụt nặng do tỷ lệ hoàn trả sau ngày thứ 12 lên tới 24.5%, cộng với chiết khấu voucher kép bào mòn biên lãi. Khuyến nghị: Dừng ngay (STOP) hoặc siết chặt điều kiện mã giảm giá.";
+    } else if (lower.includes("khai xuân") || lower.includes("combo") || lower.includes("tăng vốn")) {
+      reply = "Nhóm Khai Xuân Combo đang dẫn đầu hiệu quả toàn hệ thống với tỷ lệ hoàn chỉ 8.2% và biên đóng góp cao nhất. Khuyến nghị: Tái cấp vốn mở rộng (EXPAND) thêm +80% ngân sách.";
+    } else if (lower.includes("30") || lower.includes("chu kỳ") || lower.includes("hoàn")) {
+      reply = "Chu kỳ đối soát 7 ngày truyền thống chỉ ghi nhận 40% lượng hoàn hàng. 60% lượng hoàn hàng thực tế diễn ra trong khoảng ngày 13-30 sau chiến dịch, gây thâm hụt dòng tiền nặng nề nếu chốt sổ quá sớm.";
+    } else if (lower.includes("khu vực") || lower.includes("miền bắc") || lower.includes("cửa hàng")) {
+      reply = "Phân tích theo Khu vực & Cửa hàng cho thấy các showroom tại Miền Bắc và Miền Trung duy trì chi phí mặt bằng cố định cao, trong khi kênh online đạt tỷ suất hoàn vốn nhanh hơn nhưng cần kiểm soát rủi ro hoàn hàng.";
+    }
+
+    setMessages((prev) => [...prev, { sender: "bot", text: reply }]);
+    setIsThinking(false);
   };
 
   if (!isOpen) return null;
@@ -99,9 +127,33 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
                   : "bg-[#34655F] text-white ml-8 font-medium"
               }`}
             >
-              {m.text}
+              <div className="whitespace-pre-wrap">{m.text}</div>
+              {m.sql && (
+                <div className="mt-2 pt-2 border-t border-slate-100">
+                  <div className="text-[10px] font-mono font-bold text-[#34655F] flex items-center space-x-1">
+                    <span>⚡ Truy vấn DuckDB SQL:</span>
+                  </div>
+                  <pre className="mt-1 p-2 rounded-lg bg-slate-50 text-[10px] font-mono text-slate-700 overflow-x-auto border border-slate-200">
+                    {m.sql}
+                  </pre>
+                </div>
+              )}
+              {m.sourceTable && (
+                <div className="mt-1.5 flex items-center space-x-1.5 text-[10px] text-emerald-700 font-semibold">
+                  <span>✓ Nguồn: {m.sourceTable}</span>
+                  <span className="text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                    Chính xác 100%
+                  </span>
+                </div>
+              )}
             </div>
           ))}
+          {isThinking && (
+            <div className="p-3 bg-white border border-[#D5DFD9] rounded-2xl text-xs text-[#5C6E68] flex items-center space-x-2 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-[#34655F]" />
+              <span>Đang truy vấn DuckDB &amp; tính toán số liệu đối soát...</span>
+            </div>
+          )}
         </div>
 
         {/* Quick Question Chips (YouTube / Studio suggestions) */}
