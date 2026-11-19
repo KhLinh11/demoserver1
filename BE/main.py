@@ -45,6 +45,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+if (REPO_DIR / "vendor").is_dir():
+    app.mount("/vendor", StaticFiles(directory=str(REPO_DIR / "vendor")), name="vendor")
+if (REPO_DIR / "public").is_dir():
+    app.mount("/public", StaticFiles(directory=str(REPO_DIR / "public")), name="public")
+
+
 
 @app.get("/api/health", tags=["Trạng thái"])
 def health_check():

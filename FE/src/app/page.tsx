@@ -324,20 +324,64 @@ export default function Home() {
     }
   };
 
-  // PDF Export
+  // PDF Export toàn trang Bước 5
   const handleDownloadPdf = async () => {
-    if (backendOnline && currentRunId) {
-      try {
-        await downloadReportPdf(currentRunId, `Bao_Cao_Kiem_Toan_${companyName}.pdf`);
+    try {
+      const targetElement = document.getElementById("step5-export-container") || document.getElementById("step-panel-5");
+      if (!targetElement) {
+        setIsExecutiveModalOpen(true);
         return;
-      } catch {
-        // Fallback to modal print
       }
+
+      // Đảm bảo html2pdf có sẵn
+      const html2pdf = (window as any).html2pdf;
+      if (!html2pdf) {
+        window.print();
+        return;
+      }
+
+      // Tạm ẩn các nút bấm không cần in
+      const noPrintEls = targetElement.querySelectorAll(".no-print, button, input[type='range']");
+      const originalDisplays: { el: HTMLElement; display: string }[] = [];
+      noPrintEls.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        originalDisplays.push({ el: htmlEl, display: htmlEl.style.display });
+        htmlEl.style.display = "none";
+      });
+
+      const safeCompany = companyName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, "_");
+      const today = new Date().toISOString().slice(0, 10);
+      const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_${safeCompany}_${today}.pdf`;
+
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#FFFFFF",
+          windowWidth: 1200,
+        },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      };
+
+      await html2pdf().set(opt).from(targetElement).save();
+
+      // Phục hồi
+      originalDisplays.forEach(({ el, display }) => {
+        el.style.display = display;
+      });
+
+      alert(
+        `✅ Tải Báo Cáo PDF Toàn Trang Thành Công!\n\nToàn bộ trang Bước 5 (bao gồm các biểu đồ Scikit-Learn/Seaborn, bảng số liệu, lộ trình hành động và chữ ký kiểm toán) đã được xuất thành tệp PDF:\n${filename}`,
+      );
+    } catch (err: any) {
+      console.error("Lỗi xuất PDF Bước 5:", err);
+      window.print();
     }
-    setIsExecutiveModalOpen(true);
-    alert(
-      "💡 Bạn đang ở môi trường Web Tĩnh (Vercel).\n\nBản Tóm Tắt Kiểm Toán đã được mở trên màn hình! Bạn có thể nhấn 'In / Lưu PDF Trình Duyệt' (Ctrl+P) để lưu tệp PDF ngay lập tức.\n\nĐể tải file PDF A4 ReportLab do Backend Python sinh ra, hãy khởi chạy: .venv/bin/python -m BE",
-    );
   };
 
   // CSV Export

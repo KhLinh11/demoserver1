@@ -126,7 +126,7 @@ export function Step5PnL({
   }, [pnl, topChannels, dynamicCharts]);
 
   return (
-    <div className="space-y-6">
+    <div id="step5-export-container" className="space-y-6">
       {/* AI Executive Top Bar */}
       <div className="p-4 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center space-x-2.5">
@@ -138,7 +138,7 @@ export function Step5PnL({
             {datasetTitle}
           </span>
         </div>
-        <div>
+        <div className="flex items-center space-x-2 no-print">
           <button
             onClick={onRefreshStep5}
             disabled={isRefreshingStep5}
@@ -146,6 +146,13 @@ export function Step5PnL({
           >
             <i className={`fa-solid fa-rotate text-[#079DD9] ${isRefreshingStep5 ? "fa-spin" : ""}`} />
             <span>AI Phân Tích Lại Bước 5</span>
+          </button>
+          <button
+            onClick={onDownloadPdf}
+            className="px-3.5 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+          >
+            <i className="fa-solid fa-file-pdf" />
+            <span>Tải Báo Cáo PDF</span>
           </button>
         </div>
       </div>
@@ -489,7 +496,7 @@ export function Step5PnL({
             <i className="fa-solid fa-signature text-[#8F60BF]" />
             <span>Chữ ký kiểm toán: <strong>Chief Financial Officer (CFO) &amp; Lead Data Scientist</strong></span>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 no-print">
             <button
               onClick={onDownloadPdf}
               className="px-5 py-2.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs sm:text-sm font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"

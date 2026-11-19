@@ -13,6 +13,15 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <!-- SheetJS (xlsx) CDN: Hỗ trợ đọc tệp Excel .xlsx, .xls mọi phiên bản trực tiếp -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- html2pdf.js: Xuất toàn bộ trang báo cáo Bước 5 thành PDF chuẩn A4 cả biểu đồ và hình ảnh -->
+  <script src="/vendor/html2pdf.bundle.min.js"></script>
+  <script>
+    if (!window.html2pdf) {
+      var _h2p = document.createElement('script');
+      _h2p.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      document.head.appendChild(_h2p);
+    }
+  </script>
   <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,22 +76,28 @@
       body * {
         visibility: hidden;
       }
+      #step-panel-5, #step-panel-5 *,
+      #step5-export-container, #step5-export-container *,
       #print-executive-container, #print-executive-container * {
         visibility: visible;
       }
-      #print-executive-container {
+      #step-panel-5, #step5-export-container, #print-executive-container {
         position: absolute;
         left: 0;
         top: 0;
         width: 100%;
         margin: 0;
-        padding: 20px;
+        padding: 16px;
         background: #ffffff !important;
         color: #1E1B2E !important;
         display: block !important;
       }
       .no-print {
         display: none !important;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
     }
     @keyframes floatSlow {
@@ -3070,16 +3085,20 @@
               <h2 class="text-xl font-bold text-[#1E1B2E]">Bước 5: Tổng kết &amp; Báo cáo điều hành</h2>
               <p id="step5-dataset-subtitle" class="text-sm text-[#5C5570] mt-1">Dữ liệu đã chuẩn hóa 100% · Trực quan hóa dữ liệu bằng Scikit-Learn &amp; Báo cáo điều hành AI.</p>
             </div>
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 no-print">
               <button id="btn-reanalyze-step5" onclick="window.triggerStep5AiAnalysis(true)" class="px-3.5 py-2 rounded-xl bg-white border border-[#BEB6F2] text-[#8F60BF] hover:bg-[#FAF8FC] text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer">
                 <i id="reanalyze-step5-spinner" class="fa-solid fa-rotate text-[#079DD9]"></i>
                 <span>AI Phân Tích Lại Bước 5</span>
               </button>
-              <button onclick="toggleExecutiveReportModal()" class="px-4 py-2 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs">
-                <i class="fa-solid fa-file-invoice text-xs text-[#99D9F2]"></i>
+              <button id="btn-export-pdf-top" onclick="window.downloadBackendPdfReport(event)" class="px-3.5 py-2 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>Tải Báo Cáo PDF</span>
+              </button>
+              <button onclick="toggleExecutiveReportModal()" class="px-4 py-2 rounded-xl bg-[#FAF8FC] border border-[#ECD8F2] hover:bg-white text-[#1E1B2E] text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer">
+                <i class="fa-solid fa-file-invoice text-xs text-[#079DD9]"></i>
                 <span>Xem Báo Cáo Nhanh</span>
               </button>
-              <button onclick="handleExportReportCSV()" class="px-3.5 py-2 rounded-xl bg-white border border-[#ECD8F2] text-[#5C5570] hover:text-[#1E1B2E] text-xs font-bold transition">
+              <button onclick="handleExportReportCSV()" class="px-3.5 py-2 rounded-xl bg-white border border-[#ECD8F2] text-[#5C5570] hover:text-[#1E1B2E] text-xs font-bold transition cursor-pointer">
                 <i class="fa-solid fa-file-excel mr-1 text-[#079DD9]"></i> Xuất CSV
               </button>
             </div>
@@ -3444,15 +3463,15 @@
                 <i class="fa-solid fa-signature text-[#8F60BF]"></i>
                 <span>Chữ ký kiểm toán: <strong>Data Steward &amp; Lead BI</strong></span>
               </div>
-              <div class="flex items-center space-x-3">
-                <button onclick="window.downloadBackendPdfReport()" class="px-5 py-2.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs sm:text-sm font-bold transition shadow-sm flex items-center space-x-1.5">
+              <div class="flex items-center space-x-3 no-print">
+                <button id="btn-export-pdf-step5" onclick="window.downloadBackendPdfReport(event)" class="px-5 py-2.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs sm:text-sm font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer">
                   <i class="fa-solid fa-file-pdf"></i>
                   <span>Tải Báo Cáo PDF (A4)</span>
                 </button>
-                <button onclick="toggleExecutiveReportModal()" class="px-4 py-2.5 rounded-xl border border-[#EFE8F6] bg-white text-[#5C5570] text-xs sm:text-sm font-bold hover:text-[#1E1B2E]">
+                <button onclick="toggleExecutiveReportModal()" class="px-4 py-2.5 rounded-xl border border-[#EFE8F6] bg-white text-[#5C5570] text-xs sm:text-sm font-bold hover:text-[#1E1B2E] cursor-pointer">
                   <i class="fa-solid fa-eye mr-1 text-[#8F60BF]"></i> Xem Bản Tóm Tắt
                 </button>
-                <button onclick="handleApproveHitl2()" class="px-5 py-2.5 rounded-xl bg-[#079DD9] hover:bg-[#068ac0] text-white text-xs sm:text-sm font-bold transition shadow-sm">
+                <button onclick="handleApproveHitl2()" class="px-5 py-2.5 rounded-xl bg-[#079DD9] hover:bg-[#068ac0] text-white text-xs sm:text-sm font-bold transition shadow-sm cursor-pointer">
                   <i class="fa-solid fa-stamp mr-1"></i> Ký Duyệt &amp; Chốt Ngân Sách
                 </button>
               </div>
@@ -4308,9 +4327,9 @@
               <i class="fa-solid fa-print"></i>
               <span>In / Lưu PDF Trình Duyệt</span>
             </button>
-            <button onclick="window.downloadBackendPdfReport()" class="px-4 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-sm no-print">
+            <button onclick="window.downloadBackendPdfReport(event)" class="px-4 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-sm no-print cursor-pointer">
               <i class="fa-solid fa-file-pdf"></i>
-              <span>Tải File PDF A4</span>
+              <span>Tải Báo Cáo PDF</span>
             </button>
           </div>
         </div>
@@ -4329,64 +4348,115 @@
       }
     }
 
-    window.downloadBackendPdfReport = async function() {
-      var beHost = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+    window.downloadBackendPdfReport = async function(evt) {
+      var btn = (evt && evt.currentTarget) || document.getElementById('btn-export-pdf-step5') || document.getElementById('btn-export-pdf-top');
+      var originalBtnHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i><span>Đang xuất PDF toàn trang...</span>';
+      }
 
-      // 1. Kiểm tra health backend
-      var isBeOnline = false;
       try {
-        var hRes = await fetch(beHost + "/api/health", { method: "GET" });
-        if (hRes.ok) isBeOnline = true;
-      } catch(e) {
-        isBeOnline = false;
-      }
-
-      if (!isBeOnline) {
-        window.populateExecutiveReportBody();
-        var modal = document.getElementById('executive-report-modal');
-        if (modal) modal.classList.remove('hidden');
-        alert("💡 Bạn đang ở chế độ Web Tĩnh (Vercel).\n\nBản Tóm Tắt Kiểm Toán đã được mở trên màn hình! Bạn có thể nhấn nút 'In / Lưu PDF Trình Duyệt' (hoặc nhấn phím Ctrl+P) để lưu tệp PDF ngay lập tức.\n\nĐể tải file PDF A4 ReportLab do Backend Python sinh ra, hãy khởi chạy máy chủ: .venv/bin/python -m BE");
-        return;
-      }
-
-      // 2. Nếu đã có run_id, tải trực tiếp
-      if (window.currentBackendRunId) {
-        window.open(beHost + "/api/runs/" + window.currentBackendRunId + "/export/pdf", "_blank");
-        return;
-      }
-
-      // 3. Khởi tạo một run_id trên backend từ tệp đã nạp hoặc sample_data.csv
-      try {
-        var formData = new FormData();
-        var nameVal = (document.getElementById('biz-name-input') && document.getElementById('biz-name-input').value.trim()) || "Công ty Cổ phần Gia dụng Gia Hòa";
-        var painVal = (document.getElementById('biz-painpoints-input') && document.getElementById('biz-painpoints-input').value.trim()) || "Nghi vấn nhận vơ doanh thu và hoàn hàng trễ sau chiến dịch 30 ngày.";
-
-        if (window.lastSelectedFileObj) {
-          formData.append("file", window.lastSelectedFileObj);
-        } else {
-          var sampleRes = await fetch("sample_data.csv");
-          var blob = await sampleRes.blob();
-          formData.append("file", blob, "sample_data.csv");
+        // 1. Đảm bảo thư viện html2pdf.js đã sẵn sàng
+        if (!window.html2pdf) {
+          await new Promise(function(resolve) {
+            var s = document.createElement('script');
+            s.src = '/vendor/html2pdf.bundle.min.js';
+            s.onload = function() { resolve(true); };
+            s.onerror = function() {
+              var cdn = document.createElement('script');
+              cdn.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+              cdn.onload = function() { resolve(true); };
+              cdn.onerror = function() { resolve(false); };
+              document.head.appendChild(cdn);
+            };
+            document.head.appendChild(s);
+          });
         }
-        formData.append("company_name", nameVal);
-        formData.append("painpoints", painVal);
 
-        var res = await fetch(beHost + "/api/runs", {
-          method: "POST",
-          body: formData
+        // 2. Xác định vùng nội dung cần in
+        var targetElement = document.getElementById('step-panel-5');
+        var wasHidden = false;
+        var modal = document.getElementById('executive-report-modal');
+        var isModalOpen = modal && !modal.classList.contains('hidden');
+
+        if (isModalOpen && (!targetElement || targetElement.classList.contains('hidden'))) {
+          targetElement = document.getElementById('print-executive-container');
+        } else if (targetElement && targetElement.classList.contains('hidden')) {
+          targetElement.classList.remove('hidden');
+          wasHidden = true;
+        }
+
+        if (!targetElement) {
+          alert('Không tìm thấy nội dung Bước 5 để xuất PDF.');
+          return;
+        }
+
+        // 3. Ẩn tạm thời các nút bấm và thanh trượt không cần thiết trong bản in
+        var noPrintElements = targetElement.querySelectorAll('.no-print, button, input[type="range"]');
+        var originalStyles = [];
+        noPrintElements.forEach(function(el) {
+          originalStyles.push({ el: el, display: el.style.display });
+          el.style.display = 'none';
         });
 
-        if (res.ok) {
-          var data = await res.json();
-          window.currentBackendRunId = data.id;
-          window.open(beHost + "/api/runs/" + data.id + "/export/pdf", "_blank");
+        // 4. Tạo tên tệp có ý nghĩa từ tên công ty và ngày hiện tại
+        var bizName = (document.getElementById('biz-name-input') && document.getElementById('biz-name-input').value.trim()) || 'Bao_Cao';
+        var safeBizName = bizName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, '_');
+        var todayStr = new Date().toISOString().slice(0, 10);
+        var filename = 'Bao_Cao_Dieu_Hanh_Buoc_5_' + safeBizName + '_' + todayStr + '.pdf';
+
+        if (window.html2pdf) {
+          var opt = {
+            margin: [8, 8, 8, 8],
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: '#FFFFFF',
+              windowWidth: 1200
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+          };
+
+          await window.html2pdf().set(opt).from(targetElement).save();
+
+          // Phục hồi lại trạng thái ban đầu của các nút bấm
+          originalStyles.forEach(function(item) {
+            item.el.style.display = item.display;
+          });
+          if (wasHidden && targetElement) {
+            targetElement.classList.add('hidden');
+          }
+
+          if (window.showStepSuccessModal) {
+            window.showStepSuccessModal(
+              'Tải Báo Cáo PDF Toàn Trang Thành Công!',
+              'Toàn bộ nội dung Bước 5 (bao gồm 4 thẻ KPI, cụm 4 biểu đồ Scikit-Learn/Seaborn, bảng P&L 12 dòng, lộ trình hành động và chữ ký kiểm toán) đã được xuất thành tệp PDF chất lượng cao: <strong>' + filename + '</strong>'
+            );
+          }
         } else {
-          var err = await res.json().catch(function() { return {}; });
-          alert("Lỗi tạo báo cáo PDF: " + (err.detail || res.statusText));
+          // Fallback nếu không có html2pdf
+          originalStyles.forEach(function(item) {
+            item.el.style.display = item.display;
+          });
+          if (wasHidden && targetElement) {
+            targetElement.classList.add('hidden');
+          }
+          window.print();
         }
       } catch (err) {
-        console.error("Lỗi khi gọi API Backend:", err);
-        alert("Lỗi kết nối tới Backend API: " + err.message);
+        console.error('Lỗi khi xuất PDF Bước 5:', err);
+        alert('Đã xảy ra lỗi khi tạo PDF: ' + err.message + '\nHệ thống sẽ mở hộp thoại in trình duyệt.');
+        window.print();
+      } finally {
+        if (btn) {
+          btn.innerHTML = originalBtnHtml;
+          btn.disabled = false;
+        }
       }
     };
 
