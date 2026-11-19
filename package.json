@@ -2,7 +2,6 @@
   "name": "vitara-data-platform",
   "version": "2.0.0",
   "description": "Vitara AI - Enterprise Campaign Attribution & P&L Decision Platform",
-  "main": "index.html",
   "scripts": {
     "dev": "npm --prefix FE run dev",
     "dev:fe": "npm --prefix FE run dev",

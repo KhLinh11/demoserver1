@@ -25,10 +25,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Sao chép mã nguồn Backend, tệp giao diện SPA và các kho dữ liệu CSV bán lẻ
+# Sao chép mã nguồn Backend, tệp công khai và các kho dữ liệu CSV bán lẻ
 COPY BE ./BE
 COPY public ./public
-COPY index.html ./index.html
 COPY sales_data.csv ./sales_data.csv
 COPY sample_data.csv ./sample_data.csv
 

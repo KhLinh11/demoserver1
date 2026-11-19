@@ -29,7 +29,6 @@ demoserver1/
 ├── .dockerignore               # Tối ưu hóa dung lượng build Docker
 ├── requirements.txt            # Danh sách thư viện Python phụ thuộc của Backend
 ├── package.json                # Quản trị script khởi chạy nhanh FE & BE
-├── index.html                  # Giao diện ứng dụng hoàn chỉnh (Single Page App)
 ├── sales_data.csv              # Bộ dữ liệu bán hàng thực tế 15.000 dòng giao dịch
 ├── sample_data.csv             # Dữ liệu đối soát mẫu chuẩn (150 dòng)
 ├── .env                        # Khai báo cấu hình môi trường & GEMINI_API_KEY

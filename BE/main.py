@@ -546,8 +546,15 @@ def favicon():
     return Response(content=svg_icon, media_type="image/svg+xml")
 
 
-# Phục vụ giao diện tĩnh index.html trực tiếp từ BE (nếu chạy all-in-one)
+# Phục vụ thông tin trạng thái API tại endpoint gốc
 @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 def serve_index():
-    index_path = REPO_DIR / "index.html"
-    return FileResponse(index_path, media_type="text/html")
+    return JSONResponse(
+        content={
+            "status": "online",
+            "app": "Vitara Growth Copilot API",
+            "version": "2.0.0",
+            "docs": "/docs",
+            "frontend_url": "http://localhost:3000"
+        }
+    )
