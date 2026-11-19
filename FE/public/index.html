@@ -151,13 +151,11 @@
         var wRetEl = document.getElementById('slider-whatif-ret');
         var reinvestEl = document.getElementById('slider-whatif-reinvest');
 
-        // Giới hạn an toàn tối đa 1.000 dòng để lưu vào localStorage
-        var uploadedDataset = (window.uploadedMasterDataset && window.uploadedMasterDataset.length > 0)
-          ? window.uploadedMasterDataset.slice(0, 1000)
-          : ((typeof masterCleanedDataset !== 'undefined' && masterCleanedDataset && masterCleanedDataset.length > 0) ? masterCleanedDataset.slice(0, 1000) : []);
-        var originalRawDatasetBackup = (window.originalRawDatasetBackup && window.originalRawDatasetBackup.length > 0)
-          ? window.originalRawDatasetBackup.slice(0, 1000)
-          : uploadedDataset;
+        var rowCount = window.currentEnterpriseRowCount ||
+          (window.rawFileRows && window.rawFileRows.length) ||
+          (window.currentCleansingPlanData && window.currentCleansingPlanData.row_count) ||
+          (window.uploadedMasterDataset && window.uploadedMasterDataset.length) ||
+          0;
 
         var state = {
           activeView: activeView,
@@ -166,12 +164,19 @@
           painpoints: painVal,
           expectations: expVal,
           isBizConfirmed: !!isBizConfirmed,
-          uploadedDataset: uploadedDataset,
-          originalRawDatasetBackup: originalRawDatasetBackup,
-          currentEnterpriseRowCount: window.currentEnterpriseRowCount || uploadedDataset.length,
+          currentEnterpriseRowCount: rowCount,
           fileName: window.lastLoadedFileName || '',
           fileSize: window.lastLoadedFileSize || 0,
           droppedExactDups: window.lastLoadedDroppedDups || 0,
+          rawFileHeaders: window.rawFileHeaders || [],
+          rawFileRows: (window.rawFileRows && window.rawFileRows.length > 0) ? window.rawFileRows.slice(0, 500) : [],
+          rawCsvContent: window.rawCsvContent ? window.rawCsvContent.slice(0, 300000) : '',
+          uploadedDataset: (window.uploadedMasterDataset && window.uploadedMasterDataset.length > 0) ? window.uploadedMasterDataset.slice(0, 200) : [],
+          isCleansingApproved: !!window.isCleansingApproved,
+          currentCleansingPlanData: window.currentCleansingPlanData || null,
+          currentDiagnosisData: window.currentDiagnosisData || null,
+          currentStep4Data: window.currentStep4Data || null,
+          currentStep5Data: window.currentStep5Data || null,
           attributionModel: attrEl ? attrEl.value : 'equal_split',
           costAllocation: costEl ? costEl.value : 'revenue_share',
           returnDays: retEl ? parseInt(retEl.value) : 30,
@@ -179,12 +184,19 @@
           whatifRet: wRetEl ? parseInt(wRetEl.value) : 30,
           whatifReinvest: reinvestEl ? parseInt(reinvestEl.value) : 80,
           currentBackendRunId: window.currentBackendRunId || null,
-          isCleansingApproved: !!window.isCleansingApproved,
           currentAuditTopic: window.currentAuditTopic || 'all',
           timestamp: Date.now()
         };
 
-        localStorage.setItem('vitara_app_state', JSON.stringify(state));
+        try {
+          localStorage.setItem('vitara_app_state', JSON.stringify(state));
+        } catch (storageErr) {
+          // Nếu vượt quota localStorage (khoảng 5MB), giảm bớt payload rồi lưu an toàn
+          state.rawCsvContent = '';
+          state.rawFileRows = (window.rawFileRows && window.rawFileRows.length > 0) ? window.rawFileRows.slice(0, 50) : [];
+          state.uploadedDataset = (window.uploadedMasterDataset && window.uploadedMasterDataset.length > 0) ? window.uploadedMasterDataset.slice(0, 50) : [];
+          localStorage.setItem('vitara_app_state', JSON.stringify(state));
+        }
       } catch (err) {
         console.warn('[Vitara] Không thể lưu trạng thái vào localStorage:', err);
       }
@@ -227,18 +239,22 @@
           if (banner) banner.classList.remove('hidden');
         }
 
-        // 2. Phục hồi tập dữ liệu & dropzone
+        // 2. Phục hồi biến dữ liệu tệp
+        window.rawFileHeaders = state.rawFileHeaders || [];
+        window.rawFileRows = state.rawFileRows || [];
+        window.rawCsvContent = state.rawCsvContent || '';
+        window.lastLoadedFileName = state.fileName || '';
+        window.lastLoadedFileSize = state.fileSize || 0;
+        window.lastLoadedDroppedDups = state.droppedExactDups || 0;
+        window.currentEnterpriseRowCount = state.currentEnterpriseRowCount || (state.rawFileRows ? state.rawFileRows.length : 0) || (state.uploadedDataset ? state.uploadedDataset.length : 0) || 0;
         if (state.uploadedDataset && state.uploadedDataset.length > 0) {
           window.uploadedMasterDataset = state.uploadedDataset;
-          window.originalRawDatasetBackup = (state.originalRawDatasetBackup && state.originalRawDatasetBackup.length > 0)
-            ? state.originalRawDatasetBackup
-            : JSON.parse(JSON.stringify(state.uploadedDataset));
+          window.originalRawDatasetBackup = state.uploadedDataset;
           masterCleanedDataset = state.uploadedDataset;
-          window.currentEnterpriseRowCount = state.currentEnterpriseRowCount || state.uploadedDataset.length;
-          window.lastLoadedFileName = state.fileName || "Tệp dữ liệu đã nạp";
-          window.lastLoadedFileSize = state.fileSize || 0;
-          window.lastLoadedDroppedDups = state.droppedExactDups || 0;
+        }
 
+        // Cập nhật khung dropzone Bước 1 nếu có tệp đã nạp trong phiên
+        if (window.lastLoadedFileName || window.currentEnterpriseRowCount > 0) {
           var dropZone = document.getElementById('file-dropzone');
           var chosenEl = document.getElementById('file-chosen-name');
           if (dropZone) {
@@ -246,14 +262,17 @@
             dropZone.classList.add('border-[#079DD9]', 'bg-[#EBF6FC]/40');
           }
           if (chosenEl) {
+            var fn = window.lastLoadedFileName || "Tệp dữ liệu đã nạp";
+            var sz = window.lastLoadedFileSize || 0;
+            var szStr = sz ? (sz >= 1048576 ? (sz / 1048576).toFixed(2) + ' MB' : (sz / 1024).toFixed(1) + ' KB') : '';
             chosenEl.innerHTML = '<div class="p-3 bg-white rounded-xl border-2 border-[#079DD9] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-left">' +
               '<div class="flex items-center space-x-3">' +
                 '<div class="w-10 h-10 rounded-xl bg-[#079DD9] text-white flex items-center justify-center text-xl flex-shrink-0">' +
                   '<i class="fa-solid fa-file-circle-check"></i>' +
                 '</div>' +
                 '<div>' +
-                  '<div class="text-xs font-bold text-[#1E1B2E] font-mono">Tệp đã nạp: ' + window.lastLoadedFileName + ' <span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded ml-1 font-sans font-normal border border-emerald-200">Đã lưu phiên</span></div>' +
-                  '<div class="text-[11px] text-[#079DD9] font-bold">' + window.currentEnterpriseRowCount.toLocaleString() + ' bản ghi hợp lệ' + (window.lastLoadedDroppedDups > 0 ? (' &bull; Đã khử ' + window.lastLoadedDroppedDups.toLocaleString() + ' trùng lặp') : '') + (window.lastLoadedFileSize ? (' &bull; ' + (window.lastLoadedFileSize >= 1048576 ? (window.lastLoadedFileSize / 1048576).toFixed(2) + ' MB' : (window.lastLoadedFileSize / 1024).toFixed(1) + ' KB')) : '') + '</div>' +
+                  '<div class="text-xs font-bold text-[#1E1B2E] font-mono">Tệp đã nạp: ' + fn + ' <span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded ml-1 font-sans font-normal border border-emerald-200">Phiên đang chạy</span></div>' +
+                  '<div class="text-[11px] text-[#079DD9] font-bold">' + (window.currentEnterpriseRowCount || 0).toLocaleString() + ' bản ghi hợp lệ' + (window.lastLoadedDroppedDups > 0 ? (' &bull; Đã khử ' + window.lastLoadedDroppedDups.toLocaleString() + ' trùng lặp') : '') + (szStr ? ' &bull; ' + szStr : '') + '</div>' +
                 '</div>' +
               '</div>' +
               '<button type="button" onclick="event.preventDefault(); event.stopPropagation(); startDataScanningAndProceed();" class="w-full sm:w-auto px-4 py-2.5 bg-[#8F60BF] hover:bg-[#7b4fa8] text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center space-x-1.5 flex-shrink-0 cursor-pointer">' +
@@ -310,9 +329,47 @@
             pill.innerHTML = '<i class="fa-solid fa-circle-check text-[#079DD9] text-[10px]"></i><span>ĐÃ PHÊ DUYỆT LÀM SẠCH</span>';
             pill.className = "px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#EBF6FC] text-[#079DD9] border border-[#BEB6F2] flex items-center space-x-1";
           }
+          var postBox = document.getElementById('post-approval-data-box');
+          if (postBox) postBox.classList.remove('hidden');
+          var btnApprove = document.getElementById('btn-approve-cleansing');
+          if (btnApprove) btnApprove.classList.add('hidden');
+          var btnProceed = document.getElementById('btn-proceed-to-step3');
+          if (btnProceed) btnProceed.classList.remove('hidden');
         }
         if (state.currentAuditTopic) {
           window.currentAuditTopic = state.currentAuditTopic;
+        }
+
+        // Bước 2: Cleansing data
+        if (state.currentCleansingPlanData) {
+          window.currentCleansingPlanData = state.currentCleansingPlanData;
+          if (typeof window.renderDynamicStep2 === 'function') {
+            window.renderDynamicStep2(state.currentCleansingPlanData);
+          }
+        }
+
+        // Bước 3: Diagnosis data
+        if (state.currentDiagnosisData) {
+          window.currentDiagnosisData = state.currentDiagnosisData;
+          if (typeof window.renderStep3Table === 'function') {
+            window.renderStep3Table();
+          }
+        }
+
+        // Bước 4: Root cause data
+        if (state.currentStep4Data) {
+          window.currentStep4Data = state.currentStep4Data;
+          if (typeof window.renderStep4DynamicUI === 'function') {
+            window.renderStep4DynamicUI(state.currentStep4Data);
+          }
+        }
+
+        // Bước 5: Executive data
+        if (state.currentStep5Data) {
+          window.currentStep5Data = state.currentStep5Data;
+          if (typeof window.renderStep5DynamicUI === 'function') {
+            window.renderStep5DynamicUI(state.currentStep5Data);
+          }
         }
 
         // 5. Phục hồi View & Bước đang đứng
@@ -326,10 +383,6 @@
           if (ws) ws.classList.remove('hidden');
 
           window.switchStep(targetStep);
-
-          if (targetStep >= 2 && typeof window.runStep2ScanningSimulation === 'function') {
-            window.runStep2ScanningSimulation(true);
-          }
         } else {
           var hero = document.getElementById('view-hero');
           var ws = document.getElementById('view-workspace');
@@ -915,6 +968,8 @@
               if (typeof window.renderStep3Table === "function") {
                 window.renderStep3Table();
               }
+              if (typeof window.saveAppState === "function") window.saveAppState();
+
               // Tự động tải báo cáo chẩn đoán Bước 3 do AI phân tích
               fetch("/api/diagnosis/latest")
                 .then(function(r) { return r.json(); })
@@ -924,6 +979,7 @@
                     if (typeof window.renderStep3Table === "function") {
                       window.renderStep3Table();
                     }
+                    if (typeof window.saveAppState === "function") window.saveAppState();
                   }
                 }).catch(function() {});
             }
@@ -1334,6 +1390,7 @@
       };
       reader.onload = function(evt) {
         var content = (evt.target.result || "").replace(/^\uFEFF/, "");
+        window.rawCsvContent = content;
         var lines = content.split(/\r\n|\r|\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
 
         if (lines.length <= 1) {
@@ -1804,7 +1861,12 @@
     };
 
     window.switchStep = function(stepNum) {
-      if (stepNum > 1 && (!window.currentEnterpriseRowCount || window.currentEnterpriseRowCount <= 0) && (!window.uploadedMasterDataset || window.uploadedMasterDataset.length === 0)) {
+      var hasData = (window.currentEnterpriseRowCount && window.currentEnterpriseRowCount > 0) ||
+                    (window.uploadedMasterDataset && window.uploadedMasterDataset.length > 0) ||
+                    (window.rawFileRows && window.rawFileRows.length > 0) ||
+                    (window.currentCleansingPlanData && window.currentCleansingPlanData.cleaned_sample && window.currentCleansingPlanData.cleaned_sample.length > 0) ||
+                    (window.lastLoadedFileName && window.lastLoadedFileName.length > 0);
+      if (stepNum > 1 && !hasData) {
         window.showValidationWarning("<strong>Chưa có dữ liệu để phân tích!</strong><br><br>Vui lòng tải lên tệp dữ liệu bán lẻ (Excel / CSV) tại Bước 1 hoặc bấm chọn <strong>'⚡ Nạp Nhanh Bài Toán Mẫu'</strong> trước khi xem các bước tiếp theo.");
         stepNum = 1;
       }
@@ -1846,7 +1908,13 @@
         mainEl.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
-      if (stepNum === 3 && typeof window.renderStep3Table === 'function') {
+      if (stepNum === 2) {
+        if (window.currentCleansingPlanData && typeof window.renderDynamicStep2 === 'function') {
+          window.renderDynamicStep2(window.currentCleansingPlanData);
+        } else if (typeof renderCleanedPreviewTable === 'function') {
+          renderCleanedPreviewTable();
+        }
+      } else if (stepNum === 3 && typeof window.renderStep3Table === 'function') {
         window.renderStep3Table();
       } else if (stepNum === 4) {
         if (window.currentStep4Data && typeof window.renderStep4DynamicUI === 'function') {
@@ -5068,6 +5136,7 @@
           if (data && (data.root_causes || data.rank_shift_table || data.five_whys)) {
             window.currentStep4Data = data;
             window.renderStep4DynamicUI(data);
+            if (typeof window.saveAppState === "function") window.saveAppState();
           }
         })
         .catch(function(err) {
@@ -5317,6 +5386,7 @@
           if (data && (data.charts || data.kpis || data.corrective_actions)) {
             window.currentStep5Data = data;
             window.renderStep5DynamicUI(data);
+            if (typeof window.saveAppState === "function") window.saveAppState();
           }
         })
         .catch(function(err) {
@@ -6166,13 +6236,14 @@
           }
         });
 
-        if (typeof renderCleanedPreviewTable === 'function') renderCleanedPreviewTable();
-        if (typeof window.renderStep3Table === 'function') window.renderStep3Table();
-        if (typeof window.recalculateStep4 === 'function') window.recalculateStep4();
-        if (typeof window.renderAllTables === 'function') window.renderAllTables();
-        if (typeof window.initOrUpdateCharts === 'function') window.initOrUpdateCharts();
-
-        if (hasRestored && window.currentActiveStepNum) {
+        // Nếu KHÔNG phục hồi từ phiên cũ (người dùng mới), khởi tạo bảng mặc định
+        if (!hasRestored) {
+          if (typeof renderCleanedPreviewTable === 'function') renderCleanedPreviewTable();
+          if (typeof window.renderStep3Table === 'function') window.renderStep3Table();
+          if (typeof window.recalculateStep4 === 'function') window.recalculateStep4();
+          if (typeof window.renderAllTables === 'function') window.renderAllTables();
+          if (typeof window.initOrUpdateCharts === 'function') window.initOrUpdateCharts();
+        } else if (window.currentActiveStepNum) {
           window.switchStep(window.currentActiveStepNum);
         }
       } catch (err) {

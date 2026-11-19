@@ -42,7 +42,8 @@ export default function Home() {
 
   // Raw file & CSV Text State
   const [rawCsvText, setRawCsvText] = useState<string>("");
-  const [, setRawFile] = useState<File | null>(null);
+  const [rawFile, setRawFile] = useState<File | null>(null);
+  const [currentFileName, setCurrentFileName] = useState<string>("sample_data.csv");
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
 
   // Analytics State
@@ -161,8 +162,17 @@ export default function Home() {
           if (saved.activeDimension) setActiveDimension(saved.activeDimension);
           if (saved.currentStep) setCurrentStep(saved.currentStep);
           if (saved.currentRunId) setCurrentRunId(saved.currentRunId);
+          if (saved.filename) setCurrentFileName(saved.filename);
+          if (saved.cleansingPlanData) setCleansingPlanData(saved.cleansingPlanData);
+          if (saved.diagnosisData) setDiagnosisData(saved.diagnosisData);
+          if (saved.step4Data) setStep4Data(saved.step4Data);
+          if (saved.step5Data) setStep5Data(saved.step5Data);
+          if (saved.hitl1Approved) setHitl1Approved(saved.hitl1Approved);
           if (saved.rawCsvText) {
             applyCsvContent(saved.rawCsvText, saved.filename || "sample_data.csv", undefined, saved.activeDimension);
+            return;
+          }
+          if (saved.cleansingPlanData) {
             return;
           }
         }
@@ -207,8 +217,13 @@ export default function Home() {
           activeDimension,
           currentStep,
           currentRunId,
-          rawCsvText: rawCsvText ? rawCsvText.slice(0, 500000) : "",
-          filename: "sample_data.csv",
+          rawCsvText: rawCsvText ? rawCsvText.slice(0, 300000) : "",
+          filename: currentFileName || "sample_data.csv",
+          cleansingPlanData,
+          diagnosisData,
+          step4Data,
+          step5Data,
+          hitl1Approved,
         };
         localStorage.setItem("vitara_fe_state", JSON.stringify(stateToSave));
       } catch (err) {
@@ -216,7 +231,22 @@ export default function Home() {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [companyName, painpoints, attributionModel, returnFactor, activeDimension, currentStep, currentRunId, rawCsvText]);
+  }, [
+    companyName,
+    painpoints,
+    attributionModel,
+    returnFactor,
+    activeDimension,
+    currentStep,
+    currentRunId,
+    rawCsvText,
+    currentFileName,
+    cleansingPlanData,
+    diagnosisData,
+    step4Data,
+    step5Data,
+    hitl1Approved,
+  ]);
 
   const loadSampleData = async (filename: string = "sample_data.csv") => {
     try {
@@ -241,6 +271,7 @@ export default function Home() {
   ): { success: boolean; error?: string } => {
     try {
       setRawCsvText(text);
+      setCurrentFileName(filename);
       const res = processClientDataset(text, attributionModel, returnFactor, dimension);
       setStats(res.stats);
       setOrders(res.orders);
