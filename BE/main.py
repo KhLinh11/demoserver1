@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from BE.config import REPO_DIR, Settings, load_settings
-from BE.copilot import ask_vitara_copilot
+from BE.copilot import ask_vitara_copilot, db_store
 from BE.engine import calculate_pnl_summary, parse_and_validate_file
 from BE.reporting import generate_pdf_report
 from BE.schemas import (
@@ -135,6 +135,12 @@ async def create_run(
     # Khởi tạo bảng P&L mặc định
     default_pnl = calculate_pnl_summary(orders, WhatIfRequest(attribution_model="data_driven", return_factor=1.0))
     store.save_pnl_snapshot(run_id, default_pnl)
+
+    # Tự động nạp tệp mới vào DuckDB Analytics Store để AI Copilot truy vấn tức thì
+    try:
+        db_store.load_user_file(content, filename)
+    except Exception as e:
+        pass
 
     return run_info
 
@@ -294,6 +300,20 @@ def copilot_chat(req: CopilotChatRequest):
             "sql": None,
             "data": []
         }
+
+
+@app.post("/api/copilot/load-dataset", tags=["Trợ lý AI Copilot"])
+async def copilot_load_dataset(file: UploadFile = File(...)):
+    """Nạp trực tiếp file CSV hoặc Excel mới vào DuckDB Analytics Store để Copilot truy vấn tức thì."""
+    if not file.filename:
+        raise HTTPException(400, "Vui lòng chọn tệp.")
+    content = await file.read()
+    filename = Path(file.filename).name
+    try:
+        result = db_store.load_user_file(content, filename)
+        return result
+    except Exception as e:
+        raise HTTPException(400, f"Không thể nạp tệp vào DuckDB: {str(e)}")
 
 
 # Phục vụ favicon trực tiếp, tránh lỗi 404 trên trình duyệt

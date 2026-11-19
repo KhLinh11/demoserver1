@@ -21,46 +21,16 @@ interface Step1UploadProps {
   totalRawRows?: number;
 }
 
-// 4 tệp dữ liệu được phép cấu hình sẵn trong FE/public
-const ALLOWED_CONFIG_FILES = [
-  "28_lai_lo_cua_hang",
-  "du-lieu-test-ban-le",
-  "du_lieu_test_ban_le",
-  "sales_data",
-  "sample_data",
-];
-
-export function isConfiguredFile(filename: string, headerCols: string[]): boolean {
-  const fnClean = filename.toLowerCase().replace(/\.(csv|xlsx|xls|numbers)$/i, "").trim();
-  // 1. Kiểm tra theo tên tệp cấu hình sẵn
-  if (ALLOWED_CONFIG_FILES.some((allowed) => fnClean === allowed || fnClean.includes(allowed))) {
-    return true;
-  }
-
-  // 2. Kiểm tra theo cấu trúc Header đặc trưng của 4 tệp
+export function validateFileHeaders(filename: string, headerCols: string[]): string | null {
   const lowerHeaders = headerCols.map((h) => String(h || "").toLowerCase().trim().replace(/^["']|["']$/g, ""));
-
-  // Tệp 1: 28_lai_lo_cua_hang (Tháng, Cửa hàng, Khu vực, Doanh thu (VND), Giá vốn (VND), Chi phí thuê...)
-  const isLaiLo = lowerHeaders.some((h) => h.includes("cửa hàng") || h.includes("cua_hang")) &&
-                  lowerHeaders.some((h) => h.includes("chi phí thuê") || h.includes("chi phí nhân sự") || h.includes("tổng chi phí"));
-  if (isLaiLo) return true;
-
-  // Tệp 2: du-lieu-test-ban-le (Mã dòng, Tháng, Kênh bán, Khu vực, Sản phẩm, Số đơn, Chi phí giá vốn...)
-  const isBanLe = lowerHeaders.some((h) => h.includes("mã dòng") || h.includes("ma_dong")) &&
-                  lowerHeaders.some((h) => h.includes("kênh bán") || h.includes("sản phẩm"));
-  if (isBanLe) return true;
-
-  // Tệp 3: sales_data (Order_ID, Sales_VND, Discount_Amount_VND, Net_Sales_VND, Shipping_Days, Returned...)
-  const isSalesData = lowerHeaders.some((h) => h.includes("sales_vnd") || h.includes("net_sales_vnd")) &&
-                      lowerHeaders.some((h) => h.includes("shipping_days") || h.includes("returned"));
-  if (isSalesData) return true;
-
-  // Tệp 4: sample_data (Order_ID, Order_Value, Discount_Amount, Net_Order_Value, COGS_Recovered, Damaged_Restock_Loss...)
-  const isSampleData = lowerHeaders.some((h) => h.includes("order_value") || h.includes("net_order_value")) &&
-                       lowerHeaders.some((h) => h.includes("cogs_recovered") || h.includes("damaged_restock_loss") || h.includes("old_report_status"));
-  if (isSampleData) return true;
-
-  return false;
+  // Chặn tệp lưu lượng mạng IDS / CICIoT2023
+  const isNetwork = lowerHeaders.some((h) =>
+    ["flow_duration", "header_length", "protocol type", "srate", "drate", "syn_flag_number"].includes(h)
+  );
+  if (isNetwork) {
+    return "Tệp không phù hợp! Tệp phát hiện là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR), không phải tệp dữ liệu kinh doanh/bán lẻ!";
+  }
+  return null;
 }
 
 export function Step1Upload({
@@ -119,11 +89,9 @@ export function Step1Upload({
           }
 
           const headerCols = (rows[0] || []).map((c: any) => String(c || ""));
-          if (!isConfiguredFile(file.name, headerCols)) {
-            setErrorMsg(
-              "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: " +
-              "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
-            );
+          const headerErr = validateFileHeaders(file.name, headerCols);
+          if (headerErr) {
+            setErrorMsg(headerErr);
             setSelectedFileName("");
             if (fileInputRef.current) fileInputRef.current.value = "";
             return;
@@ -131,6 +99,15 @@ export function Step1Upload({
 
           const csvText = XLSX.utils.sheet_to_csv(ws);
           setSelectedFileName(file.name);
+
+          // Nạp dữ liệu đồng thời vào AI Copilot DuckDB
+          const formData = new FormData();
+          formData.append("file", file);
+          fetch("/api/copilot/load-dataset", {
+            method: "POST",
+            body: formData,
+          }).catch((err) => console.warn("Lỗi nạp tệp vào AI Copilot DuckDB:", err));
+
           const res = onFileLoaded(csvText, file.name, file);
           if (!res.success && res.error) {
             setErrorMsg(res.error);
@@ -166,17 +143,24 @@ export function Step1Upload({
       
       const headerCols = firstLine.split(delim).map((c) => c.trim().replace(/^["']|["']$/g, ""));
 
-      if (!isConfiguredFile(file.name, headerCols)) {
-        setErrorMsg(
-          "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: " +
-          "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
-        );
+      const headerErr = validateFileHeaders(file.name, headerCols);
+      if (headerErr) {
+        setErrorMsg(headerErr);
         setSelectedFileName("");
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
 
       setSelectedFileName(file.name);
+
+      // Nạp dữ liệu đồng thời vào AI Copilot DuckDB
+      const formData = new FormData();
+      formData.append("file", file);
+      fetch("/api/copilot/load-dataset", {
+        method: "POST",
+        body: formData,
+      }).catch((err) => console.warn("Lỗi nạp tệp vào AI Copilot DuckDB:", err));
+
       const res = onFileLoaded(text, file.name, file);
       if (!res.success && res.error) {
         setErrorMsg(res.error);

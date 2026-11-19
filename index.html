@@ -699,7 +699,7 @@
       if (isNetworkDataset) {
         window.uploadedMasterDataset = [];
         window.currentEnterpriseRowCount = 0;
-        if (errText) errText.innerHTML = "<strong>Tệp không phù hợp:</strong> Tệp <code>" + fileName + "</code> là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR), không phải tệp bán lẻ! Hệ thống chỉ chấp nhận 4 tệp cấu hình sẵn: <code>28_lai_lo_cua_hang.csv</code>, <code>du-lieu-test-ban-le.csv</code>, <code>sales_data.csv</code>, <code>sample_data.csv</code>.";
+        if (errText) errText.innerHTML = "<strong>Tệp không phù hợp:</strong> Tệp <code>" + fileName + "</code> là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR), không phải tệp bán lẻ! Vui lòng chọn tệp CSV hoặc Excel chứa dữ liệu kinh doanh/bán hàng.";
         if (errBanner) {
           errBanner.classList.remove('hidden');
           errBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -709,43 +709,18 @@
           dropZone.classList.add('border-[#D93848]', 'bg-[#FDEEED]/30');
         }
         if (chosenEl) {
-          chosenEl.innerHTML = '<div class="p-3 bg-[#FDEEED] rounded-xl border border-[#D93848] text-[#D93848] text-xs font-semibold flex items-center space-x-2"><i class="fa-solid fa-triangle-exclamation"></i><span>Tệp không phù hợp! Chỉ chấp nhận 4 tệp dữ liệu cấu hình sẵn.</span></div>';
+          chosenEl.innerHTML = '<div class="p-3 bg-[#FDEEED] rounded-xl border border-[#D93848] text-[#D93848] text-xs font-semibold flex items-center space-x-2"><i class="fa-solid fa-triangle-exclamation"></i><span>Tệp không phù hợp! Vui lòng chọn tệp CSV hoặc Excel kinh doanh.</span></div>';
           chosenEl.classList.remove('hidden');
         }
         return;
       }
 
-      // Kiểm tra tính phù hợp với 4 tệp cấu hình sẵn (28_lai_lo_cua_hang, du-lieu-test-ban-le, sales_data, sample_data)
-      var allowedPrefixes = ["28_lai_lo_cua_hang", "du-lieu-test-ban-le", "du_lieu_test_ban_le", "sales_data", "sample_data"];
-      var isNameMatched = allowedPrefixes.some(function(p) { return fileName.toLowerCase().indexOf(p) !== -1; });
-
-      var isLaiLo = headers.some(function(h) { return h.indexOf("cửa hàng") !== -1 || h.indexOf("cua_hang") !== -1; }) &&
-                    headers.some(function(h) { return h.indexOf("chi phí thuê") !== -1 || h.indexOf("chi phí nhân sự") !== -1 || h.indexOf("tổng chi phí") !== -1; });
-      var isBanLe = headers.some(function(h) { return h.indexOf("mã dòng") !== -1 || h.indexOf("ma_dong") !== -1; }) &&
-                    headers.some(function(h) { return h.indexOf("kênh bán") !== -1 || h.indexOf("sản phẩm") !== -1; });
-      var isSales = headers.some(function(h) { return h.indexOf("sales_vnd") !== -1 || h.indexOf("net_sales_vnd") !== -1; }) &&
-                    headers.some(function(h) { return h.indexOf("shipping_days") !== -1 || h.indexOf("returned") !== -1; });
-      var isSample = headers.some(function(h) { return h.indexOf("order_value") !== -1 || h.indexOf("net_order_value") !== -1; }) &&
-                     headers.some(function(h) { return h.indexOf("cogs_recovered") !== -1 || h.indexOf("damaged_restock_loss") !== -1 || h.indexOf("old_report_status") !== -1; });
-
-      if (!isNameMatched && !isLaiLo && !isBanLe && !isSales && !isSample) {
-        window.uploadedMasterDataset = [];
-        window.currentEnterpriseRowCount = 0;
-        if (errText) errText.innerHTML = "<strong>Tệp không phù hợp:</strong> Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: <code>28_lai_lo_cua_hang.csv</code>, <code>du-lieu-test-ban-le.csv</code>, <code>sales_data.csv</code>, <code>sample_data.csv</code>.";
-        if (errBanner) {
-          errBanner.classList.remove('hidden');
-          errBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-        if (dropZone) {
-          dropZone.classList.remove('border-[#BEB6F2]', 'bg-[#FAF6FD]', 'border-[#079DD9]', 'bg-[#EBF6FC]/40');
-          dropZone.classList.add('border-[#D93848]', 'bg-[#FDEEED]/30');
-        }
-        if (chosenEl) {
-          chosenEl.innerHTML = '<div class="p-3 bg-[#FDEEED] rounded-xl border border-[#D93848] text-[#D93848] text-xs font-semibold flex items-center space-x-2"><i class="fa-solid fa-triangle-exclamation"></i><span>Tệp không phù hợp! Chỉ chấp nhận 4 tệp cấu hình sẵn (28_lai_lo_cua_hang.csv, du-lieu-test-ban-le.csv, sales_data.csv, sample_data.csv).</span></div>';
-          chosenEl.classList.remove('hidden');
-        }
-        return;
-      }
+      // Nạp dữ liệu đồng thời vào DuckDB AI Copilot backend
+      try {
+        var copilotFd = new FormData();
+        copilotFd.append("file", file);
+        fetch("/api/copilot/load-dataset", { method: "POST", body: copilotFd }).catch(function(e) {});
+      } catch(e) {}
 
       // 1. Cột Doanh Thu Thô (Gross Revenue / Sales / Thành Tiền / Tổng Tiền)
       var primaryRevKeywords = [

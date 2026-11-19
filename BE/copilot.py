@@ -179,6 +179,46 @@ class DuckDBAnalyticsStore:
             "row_count": len(records),
         }
 
+    def load_user_file(self, content: bytes, filename: str) -> Dict[str, Any]:
+        """Nạp trực tiếp tệp mới do người dùng tải lên vào DuckDB để con bot query tức thì."""
+        import io
+        fn_lower = filename.lower()
+        if fn_lower.endswith(".csv"):
+            try:
+                df = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
+            except Exception:
+                df = pd.read_csv(io.BytesIO(content), encoding="latin1")
+        elif fn_lower.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(io.BytesIO(content))
+        else:
+            raise ValueError("Định dạng tệp không được hỗ trợ. Chỉ nhận .csv, .xlsx, .xls.")
+
+        # Chuẩn hoá tên cột
+        df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
+
+        # Đăng ký DataFrame vào DuckDB thành bảng uploaded_data
+        self.con.register("df_temp_upload", df)
+        self.con.execute("CREATE OR REPLACE TABLE uploaded_data AS SELECT * FROM df_temp_upload")
+        self.con.unregister("df_temp_upload")
+
+        self.has_uploaded_table = True
+        self.active_filename = filename
+        self.active_columns = list(df.columns)
+        self.active_total_rows = len(df)
+        # Chuyển đổi sample an toàn với JSON (thay thế NaN bằng None/null)
+        df_sample = df.head(3).astype(object).where(pd.notnull(df.head(3)), None)
+        self.active_sample = df_sample.to_dict(orient="records")
+
+        logger.info(f"DuckDB: Đã nạp thành công bảng uploaded_data từ {filename} ({len(df)} dòng, {len(df.columns)} cột)")
+        return {
+            "status": "success",
+            "table_name": "uploaded_data",
+            "filename": filename,
+            "total_rows": len(df),
+            "columns": list(df.columns),
+            "sample": self.active_sample
+        }
+
 
 # Khởi tạo singleton DuckDB Store
 db_store = DuckDBAnalyticsStore()
@@ -239,6 +279,54 @@ def format_vnd_str(amount: float) -> str:
 def answer_heuristic_query(query: str) -> Dict[str, Any]:
     """Bộ giải pháp thông minh dự phòng (Heuristic + DuckDB) khi không có API Key hoặc mạng lỗi."""
     q = query.lower().strip()
+
+    # 0. Ưu tiên hàng đầu: Truy vấn bảng dữ liệu do người dùng vừa tải lên (uploaded_data)
+    if getattr(db_store, "has_uploaded_table", False):
+        cols = getattr(db_store, "active_columns", [])
+        fn = getattr(db_store, "active_filename", "tệp mới")
+        total_r = getattr(db_store, "active_total_rows", 0)
+        lower_cols = [c.lower() for c in cols]
+
+        # Kiểm tra nếu câu hỏi nhắc tới các cột của file mới, hoặc nhắc tới tệp mới / vừa tải / cohort / bảng mới
+        matches_col = any(c in q for c in lower_cols if len(c) > 1)
+        mentions_file = any(k in q for k in ["tệp", "file", "mới", "vừa tải", "upload", "vừa nạp", "cohort", "giữ chân", "bảng", "dòng", "khách", "m0", "m1", "m2", "m3", "m4", "m5"])
+
+        if matches_col or mentions_file:
+            # 1. Nếu hỏi tổng số dòng / bao nhiêu dòng / bao nhiêu bản ghi
+            if any(k in q for k in ["bao nhiêu dòng", "bao nhiêu bản ghi", "tổng số dòng", "số lượng dòng", "kích thước"]):
+                sql = "SELECT COUNT(*) AS tong_so_dong FROM uploaded_data"
+                res = db_store.execute_query(sql)
+                cnt = res["data"][0]["tong_so_dong"]
+                reply = f"📊 Tệp **{fn}** vừa tải lên hiện có tổng cộng **{cnt:,} dòng dữ liệu** và **{len(cols)} cột** (`{', '.join(cols)}`)."
+                return {
+                    "intent": "DATA_QUERY",
+                    "sql": sql,
+                    "data": res["data"],
+                    "reply": reply,
+                    "source_table": f"Tệp tải lên: {fn} (DuckDB)"
+                }
+
+            # 2. Mặc định lấy dữ liệu từ uploaded_data
+            sql = "SELECT * FROM uploaded_data LIMIT 10"
+            res = db_store.execute_query(sql)
+            lines = []
+            for idx, r in enumerate(res["data"][:6], 1):
+                item_str = " | ".join([f"**{k}**: {v}" for k, v in list(r.items())[:6] if v is not None and str(v).strip()])
+                lines.append(f"• Dòng {idx}: {item_str}")
+
+            reply = (
+                f"📈 **Dữ liệu phân tích từ tệp vừa tải `{fn}` ({total_r:,} dòng):**\n\n"
+                f"📋 **Các trường thông tin:** `{', '.join(cols)}`\n\n"
+                + "\n".join(lines) + f"\n\n"
+                f"💡 DuckDB đã nạp thành công toàn bộ dữ liệu tệp `{fn}` vào bộ nhớ RAM. Bạn có thể hỏi chi tiết về bất kỳ chỉ số hay dòng nào trong tệp này!"
+            )
+            return {
+                "intent": "DATA_QUERY",
+                "sql": sql,
+                "data": res["data"],
+                "reply": reply,
+                "source_table": f"Tệp tải lên: {fn} (DuckDB)"
+            }
 
     # 1. Câu hỏi danh tính "Tôi là ai"
     if any(k in q for k in ["tôi là ai", "toi la ai", "mình là ai", "minh la ai", "who am i"]):
@@ -426,6 +514,16 @@ def call_gemini_text_to_sql(query: str, api_key: str) -> Optional[Dict[str, Any]
         model_name = os.environ.get("MODEL_NAME") or "gemini-3.5-flash-lite"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         
+        schema_docs_extra = SCHEMA_DOCS
+        if getattr(db_store, "has_uploaded_table", False):
+            uploaded_cols = getattr(db_store, "active_columns", [])
+            uploaded_fn = getattr(db_store, "active_filename", "tệp mới tải lên")
+            schema_docs_extra += f"""
+4. Bảng `uploaded_data` (Dữ liệu tệp mới người dùng vừa tải lên: {uploaded_fn}):
+   - Các cột: {', '.join(uploaded_cols)}
+   - Có thể truy vấn bằng: SELECT * FROM uploaded_data ...
+"""
+
         system_prompt = f"""
 Bạn là Vitara AI Copilot - Trợ lý Cố vấn Tăng trưởng & Phân tích Dữ liệu Bán lẻ của Vitara Data Platform.
 Bạn thông thái, lịch thiệp, thân thiện và giao tiếp hoàn toàn bằng tiếng Việt tự nhiên.
@@ -452,10 +550,10 @@ BẠN CÓ 2 PHẠM VI XỬ LÝ:
   + Đặt `"intent": "CHITCHAT"`, `"sql": null`, và viết trực tiếp câu trả lời vào `"reply"`.
   + TUYỆT ĐỐI KHÔNG sinh lệnh SQL hoặc đưa bảng số liệu bán lẻ khi người dùng chỉ chào hỏi hoặc hỏi ngoài lề!
 
-2. PHẠM VI 2: CÂU HỎI TRUY VẤN DỮ LIỆU BÁN LẺ / P&L / ĐƠN HÀNG (DATA_QUERY):
-- Khi người dùng hỏi về: doanh thu, chi phí, hoàn trả, voucher, sản phẩm bán chạy, showroom, kênh bán, P&L...
-- Cơ sở dữ liệu DuckDB có sẵn 3 bảng sau:
-{SCHEMA_DOCS}
+2. PHẠM VI 2: CÂU HỎI TRUY VẤN DỮ LIỆU BÁN LẺ / P&L / ĐƠN HÀNG / TỆP TẢI LÊN (DATA_QUERY):
+- Khi người dùng hỏi về: doanh thu, chi phí, hoàn trả, voucher, sản phẩm bán chạy, showroom, kênh bán, P&L, hoặc câu hỏi về tệp dữ liệu vừa tải lên...
+- Cơ sở dữ liệu DuckDB có sẵn các bảng sau:
+{schema_docs_extra}
 - BẮT BUỘC: Đặt `"intent": "DATA_QUERY"`, viết câu lệnh SQL SELECT DuckDB chính xác vào `"sql"`, và đặt `"reply": null`.
 
 ĐỊNH DẠNG ĐẦU RA BẮT BUỘC LÀ JSON THUẦN (Không thêm markdown code block):

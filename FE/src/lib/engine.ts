@@ -86,7 +86,7 @@ export function discoverDimensions(headers: string[], rows: string[][]): string[
 
     const kwIdx = dimensionKeywords.findIndex((kw) => lower === kw || lower.includes(kw));
     if (kwIdx !== -1) {
-      // Kiểm tra tính phân loại (cardinality từ 2 đến 50)
+      // Kiểm tra tính phân loại (cardinality từ 1 đến 50)
       const sampleValues = new Set(rows.slice(0, 100).map((r) => r[idx]).filter(Boolean));
       if (sampleValues.size >= 1 && sampleValues.size <= 50) {
         matchedCols.push({ name: h, index: idx, priority: kwIdx });
@@ -98,7 +98,20 @@ export function discoverDimensions(headers: string[], rows: string[][]): string[
   matchedCols.sort((a, b) => a.priority - b.priority);
 
   const result = matchedCols.map((c) => c.name);
-  return result.length > 0 ? result : ["Kênh bán"];
+  if (result.length > 0) return result;
+
+  // Fallback: Tìm cột chuỗi/phân loại đầu tiên có cardinality từ 1 đến 50
+  for (let idx = 0; idx < headers.length; idx++) {
+    const h = headers[idx];
+    const lower = h.toLowerCase().trim();
+    if (lower.includes("id") || lower.includes("vnd") || lower.includes("stt")) continue;
+    const sampleValues = new Set(rows.slice(0, 100).map((r) => r[idx]).filter(Boolean));
+    if (sampleValues.size >= 1 && sampleValues.size <= 50) {
+      return [h];
+    }
+  }
+
+  return headers.length > 0 ? [headers[0]] : ["Kênh bán"];
 }
 
 export function processClientDataset(
@@ -133,24 +146,7 @@ export function processClientDataset(
   if (isNetworkDataset) {
     throw new Error(
       "Tệp không phù hợp! Tệp phát hiện là dữ liệu lưu lượng mạng (CICIoT2023 / NIDR), không phải tệp bán lẻ! " +
-      "Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã cấu hình sẵn: 28_lai_lo_cua_hang.csv, du-lieu-test-ban-le.csv, sales_data.csv, sample_data.csv."
-    );
-  }
-
-  // 2. Kiểm tra tính phù hợp với 4 tệp cấu hình sẵn trong FE/public
-  const isLaiLo = headerRow.some((h) => h.includes("cửa hàng") || h.includes("cua_hang")) &&
-                  headerRow.some((h) => h.includes("chi phí thuê") || h.includes("chi phí nhân sự") || h.includes("tổng chi phí"));
-  const isBanLe = headerRow.some((h) => h.includes("mã dòng") || h.includes("ma_dong")) &&
-                  headerRow.some((h) => h.includes("kênh bán") || h.includes("sản phẩm"));
-  const isSalesData = headerRow.some((h) => h.includes("sales_vnd") || h.includes("net_sales_vnd")) &&
-                      headerRow.some((h) => h.includes("shipping_days") || h.includes("returned"));
-  const isSampleData = headerRow.some((h) => h.includes("order_value") || h.includes("net_order_value")) &&
-                       headerRow.some((h) => h.includes("cogs_recovered") || h.includes("damaged_restock_loss") || h.includes("old_report_status"));
-
-  if (!isLaiLo && !isBanLe && !isSalesData && !isSampleData) {
-    throw new Error(
-      "Tệp không phù hợp! Hệ thống chỉ chấp nhận 4 tệp dữ liệu đã được cấu hình sẵn: " +
-      "1. 28_lai_lo_cua_hang.csv, 2. du-lieu-test-ban-le.csv, 3. sales_data.csv, 4. sample_data.csv."
+      "Vui lòng tải tệp CSV hoặc Excel chứa dữ liệu kinh doanh, bán hàng, hoặc chỉ số tài chính."
     );
   }
 
@@ -186,14 +182,6 @@ export function processClientDataset(
     "days_after_order", "shipping_days", "days", "số ngày", "so_ngay", "ngày hoàn", "lead_time"
   ]);
 
-  // Kiểm tra tối thiểu: Phải có ít nhất 1 cột chỉ số tài chính (Doanh thu / Giá vốn / Lợi nhuận)
-  if (revCol === -1 && cogsCol === -1 && explicitProfitCol === -1) {
-    throw new Error(
-      `⚠️ Tệp tải lên (chứa các cột: [${rawHeaders.slice(0, 6).join(", ")}...]) không chứa các trường chỉ số tài chính bán lẻ! ` +
-      "Tệp cần có tối thiểu cột Doanh thu (Doanh thu (VND) / Sales_VND / Revenue) hoặc Giá vốn / Lợi nhuận.",
-    );
-  }
-
   // Phát hiện các chiều dữ liệu
   const availableDimensions = discoverDimensions(rawHeaders, dataRows);
   const activeDimension = chosenDimension && availableDimensions.includes(chosenDimension)
@@ -203,6 +191,26 @@ export function processClientDataset(
   const activeDimIndex = rawHeaders.findIndex(
     (h) => h.toLowerCase().trim().replace(/^"|"$/g, "") === activeDimension.toLowerCase().trim(),
   );
+
+  // Fallback linh hoạt: Tìm cột số đầu tiên làm chỉ số đo lường (Doanh thu/Volume) nếu không có cột doanh thu chuẩn
+  let effectiveRevCol = revCol;
+  if (effectiveRevCol === -1 && cogsCol === -1 && explicitProfitCol === -1) {
+    for (let c = 0; c < headerRow.length; c++) {
+      if (c !== activeDimIndex && c !== idCol && c !== dtCol) {
+        const hasNumber = dataRows.some((row) => {
+          const v = parseFloat(row[c]?.replace(/,/g, "") || "");
+          return !isNaN(v) && v > 0;
+        });
+        if (hasNumber) {
+          effectiveRevCol = c;
+          break;
+        }
+      }
+    }
+    if (effectiveRevCol === -1) {
+      effectiveRevCol = headerRow.length > 1 ? 1 : 0;
+    }
+  }
 
   let missingImputed = 0;
   const seenOrders = new Set<string>();
@@ -227,17 +235,20 @@ export function processClientDataset(
       }
     }
 
-    // Giá trị Doanh thu
-    let gross = 0;
-    if (revCol !== -1 && row[revCol]) {
-      gross = Math.max(0, parseFloat(row[revCol].replace(/[^\d.-]/g, "")) || 0);
+    // Giá trị Doanh thu (Gross)
+    let gross = 500000;
+    if (effectiveRevCol !== -1 && row[effectiveRevCol]) {
+      const rawV = parseFloat(row[effectiveRevCol].replace(/[^\d.-]/g, "")) || 0;
+      if (rawV > 0 && rawV < 1000 && (headerRow[effectiveRevCol]?.includes("khách") || headerRow[effectiveRevCol]?.includes("m0"))) {
+        gross = rawV * 500000;
+      } else {
+        gross = Math.max(0, rawV);
+      }
     } else if (cogsCol !== -1 && explicitProfitCol !== -1) {
       // Tính ngược: Doanh thu = Giá vốn + Lợi nhuận gộp
       const c = parseFloat(row[cogsCol].replace(/[^\d.-]/g, "")) || 0;
       const p = parseFloat(row[explicitProfitCol].replace(/[^\d.-]/g, "")) || 0;
       gross = Math.max(0, c + p);
-    } else {
-      gross = 500000;
     }
 
     // Voucher / Giảm giá
