@@ -90,7 +90,7 @@ export default function Home() {
       fetch("/api/diagnosis/analyze", { method: "POST", body: fd })
         .then((r) => r.json())
         .then((d) => {
-          if (d.markdown_report || d.dataset_title) setDiagnosisData(d);
+          if (d && (d.markdown_report || d.dataset_title)) setDiagnosisData(d);
         })
         .catch(() => {})
         .finally(() => setIsRefreshingDiagnosis(false));
@@ -98,9 +98,28 @@ export default function Home() {
       fetch("/api/diagnosis/latest")
         .then((r) => r.json())
         .then((d) => {
-          if (d.markdown_report || d.dataset_title) setDiagnosisData(d);
+          if (d && d.markdown_report) {
+            setDiagnosisData(d);
+          } else {
+            return fetch("/api/diagnosis/analyze", { method: "POST" })
+              .then((res) => res.json())
+              .then((analyzed) => {
+                if (analyzed && (analyzed.markdown_report || analyzed.dataset_title)) {
+                  setDiagnosisData(analyzed);
+                }
+              });
+          }
         })
-        .catch(() => {})
+        .catch(() => {
+          fetch("/api/diagnosis/analyze", { method: "POST" })
+            .then((res) => res.json())
+            .then((analyzed) => {
+              if (analyzed && (analyzed.markdown_report || analyzed.dataset_title)) {
+                setDiagnosisData(analyzed);
+              }
+            })
+            .catch(() => {});
+        })
         .finally(() => setIsRefreshingDiagnosis(false));
     }
   };
@@ -568,6 +587,8 @@ export default function Home() {
                   totalLoadedRows={orders.length}
                   isSampled={isSampled}
                   totalRawRows={totalRawRows}
+                  onProceedToStep2={() => setCurrentStep(2)}
+                  onBackToHero={() => setActiveView("hero")}
                 />
               )}
 
@@ -590,6 +611,7 @@ export default function Home() {
                   activeDimension={activeDimension}
                   onDimensionChange={handleDimensionChange}
                   onProceedToStep4={() => setCurrentStep(4)}
+                  onBackToStep2={() => setCurrentStep(2)}
                   diagnosisData={diagnosisData}
                   onRefreshDiagnosis={() => fetchDiagnosis()}
                   isRefreshing={isRefreshingDiagnosis}
@@ -608,6 +630,7 @@ export default function Home() {
                   activeDimension={activeDimension}
                   onDimensionChange={handleDimensionChange}
                   onProceedToStep5={() => setCurrentStep(5)}
+                  onBackToStep3={() => setCurrentStep(3)}
                   step4Data={step4Data}
                   onRefreshStep4={() => fetchStep4(true)}
                   isRefreshingStep4={isRefreshingStep4}
@@ -630,6 +653,7 @@ export default function Home() {
                     onRefreshStep5={() => fetchStep5(true)}
                     isRefreshingStep5={isRefreshingStep5}
                     onExportCsv={handleExportCSV}
+                    onBackToStep4={() => setCurrentStep(4)}
                   />
                 </div>
               )}

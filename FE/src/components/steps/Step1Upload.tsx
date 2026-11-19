@@ -19,6 +19,8 @@ interface Step1UploadProps {
   totalLoadedRows: number;
   isSampled?: boolean;
   totalRawRows?: number;
+  onProceedToStep2?: () => void;
+  onBackToHero?: () => void;
 }
 
 export function validateFileHeaders(filename: string, headerCols: string[]): string | null {
@@ -42,6 +44,8 @@ export function Step1Upload({
   onQuickLoadSample,
   isLoading,
   totalLoadedRows,
+  onProceedToStep2,
+  onBackToHero,
 }: Step1UploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
@@ -418,6 +422,30 @@ export function Step1Upload({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Bottom Action Footer */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[#ECD8F2]">
+        {onBackToHero && (
+          <button
+            type="button"
+            onClick={onBackToHero}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl border border-[#ECD8F2] bg-white text-[#5C5570] text-sm font-bold hover:text-[#1E1B2E] transition flex items-center justify-center space-x-2 cursor-pointer"
+          >
+            <i className="fa-solid fa-arrow-left text-xs" />
+            <span>Về Trang Bìa</span>
+          </button>
+        )}
+        {onProceedToStep2 && (
+          <button
+            type="button"
+            onClick={onProceedToStep2}
+            className="w-full sm:w-auto px-8 py-3.5 bg-[#8F60BF] hover:bg-[#7b4fa8] text-white rounded-xl text-sm font-bold transition flex items-center justify-center space-x-2 shadow-sm cursor-pointer ml-auto"
+          >
+            <span>Bắt Đầu Quét &amp; Chuẩn Hoá (Sang Bước 2)</span>
+            <i className="fa-solid fa-arrow-right text-xs text-[#99D9F2]" />
+          </button>
+        )}
       </div>
     </div>
   );

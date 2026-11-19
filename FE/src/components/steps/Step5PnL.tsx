@@ -19,6 +19,7 @@ interface Step5PnLProps {
   onRefreshStep5?: () => void;
   isRefreshingStep5?: boolean;
   onExportCsv?: () => void;
+  onBackToStep4?: () => void;
 }
 
 export function Step5PnL({
@@ -35,6 +36,7 @@ export function Step5PnL({
   onRefreshStep5,
   isRefreshingStep5 = false,
   onExportCsv,
+  onBackToStep4,
 }: Step5PnLProps) {
   const chartWaterfallRef = useRef<HTMLCanvasElement>(null);
   const chartRankRef = useRef<HTMLCanvasElement>(null);
@@ -521,7 +523,17 @@ export function Step5PnL({
             <i className="fa-solid fa-signature text-[#8F60BF]" />
             <span>Chữ ký kiểm toán: <strong>Chief Financial Officer (CFO) &amp; Lead Data Scientist</strong></span>
           </div>
-          <div className="flex items-center space-x-3 no-print">
+          <div className="flex flex-wrap items-center gap-3 no-print">
+            {onBackToStep4 && (
+              <button
+                type="button"
+                onClick={onBackToStep4}
+                className="px-4 py-2.5 rounded-xl border border-[#ECD8F2] bg-white text-[#5C5570] text-xs sm:text-sm font-bold hover:text-[#8F60BF] hover:bg-[#FAF6FD] transition cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+              >
+                <i className="fa-solid fa-arrow-left text-[#079DD9]" />
+                <span>Quay lại Bước 4</span>
+              </button>
+            )}
             <button
               onClick={onDownloadPdf}
               className="px-5 py-2.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs sm:text-sm font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"

@@ -10,6 +10,7 @@ interface Step3DiagnosisProps {
   activeDimension?: string;
   onDimensionChange?: (dim: string) => void;
   onProceedToStep4: () => void;
+  onBackToStep2?: () => void;
   diagnosisData?: any;
   onRefreshDiagnosis?: () => void;
   isRefreshing?: boolean;
@@ -302,6 +303,7 @@ export function Step3Diagnosis({
   activeDimension = "Kênh bán",
   onDimensionChange,
   onProceedToStep4,
+  onBackToStep2,
   diagnosisData,
   onRefreshDiagnosis,
   isRefreshing = false,
@@ -468,16 +470,39 @@ export function Step3Diagnosis({
       {/* Tab 1: AI Markdown View */}
       {activeTab === "ai" && (
         <div className="p-6 rounded-2xl bg-white border border-[#ECD8F2] shadow-sm space-y-4">
-          {diagnosisData?.markdown_report ? (
-            <div className="space-y-2">{parseMarkdown(diagnosisData.markdown_report)}</div>
-          ) : (
-            <div className="p-12 text-center space-y-3">
-              <i className="fa-solid fa-circle-notch fa-spin text-2xl text-[#8F60BF]" />
-              <p className="text-xs font-bold text-[#8F60BF]">
-                Gemini AI đang tiến hành phân tích số liệu và lập báo cáo chẩn đoán chuyên sâu...
-              </p>
-            </div>
-          )}
+          {(() => {
+            const parsedReport = diagnosisData?.markdown_report ? parseMarkdown(diagnosisData.markdown_report) : null;
+            const hasValidReport = parsedReport && Array.isArray(parsedReport) && parsedReport.length > 0;
+            if (hasValidReport) {
+              return <div className="space-y-2">{parsedReport}</div>;
+            }
+            return (
+              <div className="p-12 text-center space-y-3">
+                <i className={`fa-solid ${isRefreshing ? "fa-circle-notch fa-spin text-[#8F60BF]" : "fa-file-waveform text-[#8F60BF]"} text-3xl mb-2 block`} />
+                <p className="text-sm font-bold text-[#1E1B2E]">
+                  {isRefreshing
+                    ? "Gemini AI đang tiến hành phân tích số liệu và lập báo cáo chẩn đoán chuyên sâu..."
+                    : "Đang tải báo cáo chẩn đoán AI..."}
+                </p>
+                <p className="text-xs text-[#5C5570] max-w-md mx-auto">
+                  Hệ thống AI Auditor đang quét toàn bộ giao dịch, bóc tách rò rỉ voucher và hoàn hàng trễ.
+                </p>
+                {onRefreshDiagnosis && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={onRefreshDiagnosis}
+                      disabled={isRefreshing}
+                      className="px-4 py-2 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition inline-flex items-center space-x-2 shadow-2xs cursor-pointer disabled:opacity-50"
+                    >
+                      <i className={`fa-solid fa-rotate ${isRefreshing ? "fa-spin" : ""}`} />
+                      <span>{isRefreshing ? "Đang Phân Tích..." : "Kích Hoạt Phân Tích AI"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -669,16 +694,23 @@ export function Step3Diagnosis({
       )}
 
       {/* Navigation footer */}
-      <div className="flex items-center justify-between pt-2">
-        <span className="text-xs text-[#5C5570]">
-          Đã chẩn đoán xong rủi ro dòng tiền và cấu trúc dữ liệu.
-        </span>
+      <div className="flex items-center justify-between pt-4 border-t border-[#ECD8F2]">
+        {onBackToStep2 && (
+          <button
+            type="button"
+            onClick={onBackToStep2}
+            className="px-6 py-3 rounded-xl border border-[#ECD8F2] bg-white text-[#5C5570] text-sm font-bold hover:text-[#1E1B2E] transition flex items-center space-x-2 cursor-pointer"
+          >
+            <i className="fa-solid fa-arrow-left text-xs" />
+            <span>Quay lại Bước 2</span>
+          </button>
+        )}
         <button
           onClick={onProceedToStep4}
-          className="px-6 py-3 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
+          className="px-8 py-3.5 bg-[#8F60BF] hover:bg-[#7b4fa8] text-white rounded-xl text-sm font-bold transition flex items-center space-x-2 shadow-xs cursor-pointer ml-auto"
         >
-          <span>Sang Bước 4: Nguyên Nhân &amp; Đề Xuất</span>
-          <i className="fa-solid fa-arrow-right text-[#99D9F2]" />
+          <span>Xem Nguyên Nhân &amp; Đề Xuất (Sang Bước 4)</span>
+          <i className="fa-solid fa-arrow-right text-xs text-[#99D9F2]" />
         </button>
       </div>
     </div>

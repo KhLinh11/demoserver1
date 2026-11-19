@@ -14,6 +14,7 @@ interface Step4SimulationProps {
   activeDimension?: string;
   onDimensionChange?: (dim: string) => void;
   onProceedToStep5: () => void;
+  onBackToStep3?: () => void;
   step4Data?: any;
   onRefreshStep4?: () => void;
   isRefreshingStep4?: boolean;
@@ -29,6 +30,7 @@ export function Step4Simulation({
   activeDimension = "Kênh bán",
   onDimensionChange,
   onProceedToStep5,
+  onBackToStep3,
   step4Data,
   onRefreshStep4,
   isRefreshingStep4 = false,
@@ -580,15 +582,27 @@ export function Step4Simulation({
           </div>
         </div>
 
-        <div className="pt-3 border-t border-[#ECD8F2] flex justify-end">
+      </div>
+
+      {/* Navigation footer */}
+      <div className="flex items-center justify-between pt-4 border-t border-[#ECD8F2]">
+        {onBackToStep3 && (
           <button
-            onClick={onProceedToStep5}
-            className="px-5 py-2.5 rounded-xl bg-[#079DD9] hover:bg-[#068ac0] text-white text-xs font-bold transition shadow-sm flex items-center space-x-1.5 cursor-pointer"
+            type="button"
+            onClick={onBackToStep3}
+            className="px-6 py-3 rounded-xl border border-[#ECD8F2] bg-white text-[#5C5570] text-sm font-bold hover:text-[#1E1B2E] transition flex items-center space-x-2 cursor-pointer"
           >
-            <span>Sang Báo Cáo P&amp;L 12 Dòng (Bước 5)</span>
-            <i className="fa-solid fa-arrow-right" />
+            <i className="fa-solid fa-arrow-left text-xs" />
+            <span>Quay lại Bước 3</span>
           </button>
-        </div>
+        )}
+        <button
+          onClick={onProceedToStep5}
+          className="px-8 py-3.5 bg-[#8F60BF] hover:bg-[#7b4fa8] text-white rounded-xl text-sm font-bold transition flex items-center space-x-2 shadow-xs cursor-pointer ml-auto"
+        >
+          <span>Xem Báo Cáo P&amp;L Tổng Kết (Sang Bước 5)</span>
+          <i className="fa-solid fa-arrow-right text-xs text-[#99D9F2]" />
+        </button>
       </div>
     </div>
   );

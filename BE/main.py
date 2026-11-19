@@ -336,6 +336,43 @@ latest_step4_cache: dict[str, Any] = {}
 latest_step5_cache: dict[str, Any] = {}
 
 
+def _resolve_current_dataframe() -> tuple[Optional[pd.DataFrame], str]:
+    """Tìm DataFrame hiện tại theo thứ tự ưu tiên:
+    1. latest_cleansing_cache['cleaned_sample']
+    2. File CSV mới nhất trong BE/runtime/uploads/
+    3. sample_data.csv ở thư mục gốc hoặc public
+    """
+    global latest_cleansing_cache
+    if latest_cleansing_cache and "cleaned_sample" in latest_cleansing_cache and latest_cleansing_cache["cleaned_sample"]:
+        rows = latest_cleansing_cache["cleaned_sample"]
+        fname = latest_cleansing_cache.get("filename", "uploaded_dataset.csv")
+        return pd.DataFrame(rows), fname
+
+    upload_dir = REPO_DIR / "BE" / "runtime" / "uploads"
+    csv_files = sorted(upload_dir.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True) if upload_dir.is_dir() else []
+    if csv_files:
+        try:
+            df = pd.read_csv(csv_files[0], encoding="utf-8-sig")
+            fname = "_".join(csv_files[0].name.split("_")[1:]) if "_" in csv_files[0].name else csv_files[0].name
+            return df, fname
+        except Exception:
+            try:
+                df = pd.read_csv(csv_files[0], encoding="latin1")
+                return df, csv_files[0].name
+            except Exception:
+                pass
+
+    for p in [REPO_DIR / "sample_data.csv", REPO_DIR / "public" / "sample_data.csv", REPO_DIR / "FE" / "public" / "sample_data.csv"]:
+        if p.exists():
+            try:
+                df = pd.read_csv(p)
+                return df, p.name
+            except Exception:
+                pass
+
+    return None, ""
+
+
 @app.post("/api/cleansing/analyze", tags=["Chuẩn hoá dữ liệu & AI Cleansing"])
 async def cleansing_analyze(file: UploadFile = File(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """Phân tích dữ liệu bằng pandas và sinh Kế hoạch Chuẩn hoá Tự động (AI Cleansing Plan) qua Gemini API."""
@@ -410,15 +447,13 @@ async def diagnosis_analyze(file: Optional[UploadFile] = File(None)):
         latest_diagnosis_cache = analyze_step3_diagnosis(df, filename)
         return latest_diagnosis_cache
 
-    # Nếu không gửi file, sử dụng dữ liệu từ cache Bước 2
-    if latest_cleansing_cache and "cleaned_sample" in latest_cleansing_cache:
-        rows = latest_cleansing_cache["cleaned_sample"]
-        filename = latest_cleansing_cache.get("filename", "uploaded_dataset.csv")
-        df = pd.DataFrame(rows)
-        latest_diagnosis_cache = analyze_step3_diagnosis(df, filename)
+    # Nếu không gửi file, sử dụng dữ liệu từ cache Bước 2 / uploads / sample_data.csv
+    df, fname = _resolve_current_dataframe()
+    if df is not None and len(df) > 0:
+        latest_diagnosis_cache = analyze_step3_diagnosis(df, fname)
         return latest_diagnosis_cache
 
-    if latest_diagnosis_cache:
+    if latest_diagnosis_cache and latest_diagnosis_cache.get("markdown_report"):
         return latest_diagnosis_cache
 
     raise HTTPException(400, "Chưa có dữ liệu nào được tải lên để phân tích.")
@@ -427,6 +462,19 @@ async def diagnosis_analyze(file: Optional[UploadFile] = File(None)):
 @app.get("/api/diagnosis/latest", tags=["Chẩn đoán rủi ro Bước 3"])
 def get_latest_diagnosis():
     """Lấy báo cáo chẩn đoán Bước 3 mới nhất."""
+    global latest_diagnosis_cache
+    if latest_diagnosis_cache and latest_diagnosis_cache.get("markdown_report"):
+        return latest_diagnosis_cache
+
+    try:
+        from BE.diagnosis import analyze_step3_diagnosis
+        df, fname = _resolve_current_dataframe()
+        if df is not None and len(df) > 0:
+            latest_diagnosis_cache = analyze_step3_diagnosis(df, fname)
+            return latest_diagnosis_cache
+    except Exception as e:
+        print(f"[Diagnosis Warning] Không thể tự động sinh chẩn đoán Bước 3: {e}")
+
     return latest_diagnosis_cache or {"status": "empty"}
 
 
@@ -434,6 +482,69 @@ def get_latest_diagnosis():
 async def simulation_analyze(file: Optional[UploadFile] = File(None)):
     """Phân tích 5-Whys, Bằng chứng kiểm toán và Ma trận độ nhạy Bước 4 qua Gemini AI."""
     global latest_step4_cache, latest_diagnosis_cache, latest_cleansing_cache
+    from BE.step4_rootcause import analyze_step4_rootcause
+    from BE.diagnosis import analyze_step3_diagnosis
+
+    # 1. Nếu có file upload trực tiếp
+    if file and file.filename:
+        content = await file.read()
+        filename = Path(file.filename).name
+        import io
+        if filename.lower().endswith(".csv"):
+            try:
+                df = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
+            except Exception:
+                df = pd.read_csv(io.BytesIO(content), encoding="latin1")
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+
+        step3 = latest_diagnosis_cache or analyze_step3_diagnosis(df, filename)
+        latest_diagnosis_cache = step3
+        latest_step4_cache = analyze_step4_rootcause(step3, df, filename)
+        return latest_step4_cache
+
+    # 2. Sử dụng cache dữ liệu từ Bước 2 / Bước 3 / uploads / sample
+    df, fname = _resolve_current_dataframe()
+    if df is not None and len(df) > 0:
+        if not latest_diagnosis_cache or not latest_diagnosis_cache.get("markdown_report"):
+            latest_diagnosis_cache = analyze_step3_diagnosis(df, fname)
+        latest_step4_cache = analyze_step4_rootcause(latest_diagnosis_cache, df, fname)
+        return latest_step4_cache
+
+    if latest_step4_cache and latest_step4_cache.get("root_causes"):
+        return latest_step4_cache
+
+    raise HTTPException(400, "Chưa có dữ liệu nào để phân tích Bước 4.")
+
+
+@app.get("/api/simulation/latest", tags=["Mô phỏng & Bằng chứng Bước 4"])
+def get_latest_simulation():
+    """Lấy dữ liệu phân tích Bước 4 mới nhất."""
+    global latest_step4_cache, latest_diagnosis_cache
+    if latest_step4_cache and latest_step4_cache.get("root_causes"):
+        return latest_step4_cache
+
+    try:
+        from BE.step4_rootcause import analyze_step4_rootcause
+        from BE.diagnosis import analyze_step3_diagnosis
+        df, fname = _resolve_current_dataframe()
+        if df is not None and len(df) > 0:
+            if not latest_diagnosis_cache or not latest_diagnosis_cache.get("markdown_report"):
+                latest_diagnosis_cache = analyze_step3_diagnosis(df, fname)
+            latest_step4_cache = analyze_step4_rootcause(latest_diagnosis_cache, df, fname)
+            return latest_step4_cache
+    except Exception as e:
+        print(f"[Simulation Warning] Không thể tự động sinh Bước 4: {e}")
+
+    return latest_step4_cache or {"status": "empty"}
+
+
+@app.post("/api/executive/analyze", tags=["Tổng kết & Báo cáo điều hành Bước 5"])
+async def executive_analyze(file: Optional[UploadFile] = File(None)):
+    """Phân tích tổng kết điều hành, sinh biểu đồ sklearn và báo cáo Bước 5 qua Gemini AI."""
+    global latest_step5_cache, latest_step4_cache, latest_diagnosis_cache, latest_cleansing_cache
+    from BE.step5_report import analyze_step5_report
+    from BE.diagnosis import analyze_step3_diagnosis
     from BE.step4_rootcause import analyze_step4_rootcause
 
     # 1. Nếu có file upload trực tiếp
@@ -449,68 +560,19 @@ async def simulation_analyze(file: Optional[UploadFile] = File(None)):
         else:
             df = pd.read_excel(io.BytesIO(content))
 
-        from BE.diagnosis import analyze_step3_diagnosis
-        step3 = latest_diagnosis_cache or analyze_step3_diagnosis(df, filename)
-        latest_diagnosis_cache = step3
-        latest_step4_cache = analyze_step4_rootcause(step3, df, filename)
-        return latest_step4_cache
-
-    # 2. Sử dụng cache dữ liệu từ Bước 2 / Bước 3
-    if latest_cleansing_cache and "cleaned_sample" in latest_cleansing_cache:
-        rows = latest_cleansing_cache["cleaned_sample"]
-        filename = latest_cleansing_cache.get("filename", "uploaded_dataset.csv")
-        df = pd.DataFrame(rows)
-        step3 = latest_diagnosis_cache or {}
-        latest_step4_cache = analyze_step4_rootcause(step3, df, filename)
-        return latest_step4_cache
-
-    if latest_step4_cache:
-        return latest_step4_cache
-
-    raise HTTPException(400, "Chưa có dữ liệu nào để phân tích Bước 4.")
-
-
-@app.get("/api/simulation/latest", tags=["Mô phỏng & Bằng chứng Bước 4"])
-def get_latest_simulation():
-    """Lấy dữ liệu phân tích Bước 4 mới nhất."""
-    return latest_step4_cache or {"status": "empty"}
-
-
-@app.post("/api/executive/analyze", tags=["Tổng kết & Báo cáo điều hành Bước 5"])
-async def executive_analyze(file: Optional[UploadFile] = File(None)):
-    """Phân tích tổng kết điều hành, sinh biểu đồ sklearn và báo cáo Bước 5 qua Gemini AI."""
-    global latest_step5_cache, latest_step4_cache, latest_diagnosis_cache, latest_cleansing_cache
-    from BE.step5_report import analyze_step5_report
-
-    # 1. Nếu có file upload trực tiếp
-    if file and file.filename:
-        content = await file.read()
-        filename = Path(file.filename).name
-        import io
-        if filename.lower().endswith(".csv"):
-            try:
-                df = pd.read_csv(io.BytesIO(content), encoding="utf-8-sig")
-            except Exception:
-                df = pd.read_csv(io.BytesIO(content), encoding="latin1")
-        else:
-            df = pd.read_excel(io.BytesIO(content))
-
-        from BE.diagnosis import analyze_step3_diagnosis
-        from BE.step4_rootcause import analyze_step4_rootcause
-
         step3 = latest_diagnosis_cache or analyze_step3_diagnosis(df, filename)
         step4 = latest_step4_cache or analyze_step4_rootcause(step3, df, filename)
         latest_step5_cache = analyze_step5_report(step3, step4, df, filename)
         return latest_step5_cache
 
-    # 2. Sử dụng cache dữ liệu từ Bước 2 / Bước 3 / Bước 4
-    if latest_cleansing_cache and "cleaned_sample" in latest_cleansing_cache:
-        rows = latest_cleansing_cache["cleaned_sample"]
-        filename = latest_cleansing_cache.get("filename", "uploaded_dataset.csv")
-        df = pd.DataFrame(rows)
-        step3 = latest_diagnosis_cache or {}
-        step4 = latest_step4_cache or {}
-        latest_step5_cache = analyze_step5_report(step3, step4, df, filename)
+    # 2. Sử dụng cache dữ liệu từ Bước 2 / Bước 3 / Bước 4 / uploads / sample
+    df, fname = _resolve_current_dataframe()
+    if df is not None and len(df) > 0:
+        if not latest_diagnosis_cache or not latest_diagnosis_cache.get("markdown_report"):
+            latest_diagnosis_cache = analyze_step3_diagnosis(df, fname)
+        if not latest_step4_cache or not latest_step4_cache.get("root_causes"):
+            latest_step4_cache = analyze_step4_rootcause(latest_diagnosis_cache, df, fname)
+        latest_step5_cache = analyze_step5_report(latest_diagnosis_cache, latest_step4_cache, df, fname)
         return latest_step5_cache
 
     if latest_step5_cache:
