@@ -1680,8 +1680,14 @@
 
       if (stepNum === 3 && typeof window.renderStep3Table === 'function') {
         window.renderStep3Table();
-      } else if (stepNum === 4 && typeof window.recalculateStep4 === 'function') {
-        window.recalculateStep4();
+      } else if (stepNum === 4) {
+        if (window.currentStep4Data && typeof window.renderStep4DynamicUI === 'function') {
+          window.renderStep4DynamicUI(window.currentStep4Data);
+        } else if (typeof window.triggerStep4AiAnalysis === 'function') {
+          window.triggerStep4AiAnalysis(false);
+        } else if (typeof window.recalculateStep4 === 'function') {
+          window.recalculateStep4();
+        }
       } else if (stepNum === 5) {
         if (typeof window.renderAllTables === 'function') window.renderAllTables();
         if (typeof window.initOrUpdateCharts === 'function') {
@@ -2553,47 +2559,64 @@
             </span>
           </div>
 
-          <!-- 3 NGUYÊN NHÂN CỐT LÕI (5-WHYS ROOT CAUSE) -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- THANH ĐIỀU HƯỚNG VÀ TRẠNG THÁI AI BƯỚC 4 -->
+          <div class="p-4 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-center space-x-2.5">
+              <span class="px-2.5 py-1 rounded-lg bg-[#8F60BF] text-white text-[11px] font-black uppercase tracking-wider flex items-center space-x-1 shadow-2xs">
+                <i class="fa-solid fa-brain text-[#99D9F2]"></i>
+                <span>AI Root Cause Copilot</span>
+              </span>
+              <span id="step4-dataset-title" class="text-xs sm:text-sm font-bold text-[#1E1B2E]">Phân Tích Căn Nguyên &amp; Bằng Chứng Kiểm Toán Thực Nghiệm</span>
+            </div>
+            <div>
+              <button id="btn-reanalyze-step4" onclick="window.triggerStep4AiAnalysis(true)" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF8FC] border border-[#BEB6F2] text-[#8F60BF] text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer">
+                <i id="reanalyze-step4-spinner" class="fa-solid fa-rotate text-[#079DD9]"></i>
+                <span>AI Phân Tích Lại Bước 4</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3 NGUYÊN NHÂN CỐT LÕI (5-WHYS ROOT CAUSE ĐỘNG) -->
+          <div id="step4-root-causes-container" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-2.5">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-bold text-[#8F60BF] uppercase">NGUYÊN NHÂN 1</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF]">BẪY CHIẾT KHẤU</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF]">ĐỨT GÃY RETENTION</span>
               </div>
-              <h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">Flash Sale Giảm Sâu 26.2%</h5>
+              <h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">Rơi Tự Do Sau Chu Kỳ M3</h5>
               <div class="p-3 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-1 text-xs font-mono">
-                <div class="flex justify-between text-[#5C5570]"><span>Giá niêm yết:</span><strong class="text-[#1E1B2E]">297.95M ₫</strong></div>
-                <div class="flex justify-between text-[#5C5570]"><span>Voucher vượt trần:</span><strong class="text-[#8F60BF]">-33.32M ₫</strong></div>
-                <div class="flex justify-between text-[#5C5570]"><span>Chi phí Ads:</span><strong class="text-[#8F60BF]">-45.00M ₫</strong></div>
-                <div class="text-[11px] font-bold text-[#8F60BF] pt-1 border-t border-[#ECD8F2]">&rarr; Biên gộp 8.2% không bù nổi Ads</div>
+                <div class="flex justify-between text-[#5C5570]"><span>Tỷ lệ giữ chân M0 &rarr; M1:</span><strong class="text-[#1E1B2E]">85.0% (Tốt)</strong></div>
+                <div class="flex justify-between text-[#5C5570]"><span>Tỷ lệ giữ chân M3:</span><strong class="text-[#8F60BF]">61.3% (Bắt đầu gãy)</strong></div>
+                <div class="flex justify-between text-[#5C5570]"><span>Tỷ lệ giữ chân M4:</span><strong class="text-[#8F60BF]">52.1% (Rơi mạnh)</strong></div>
+                <div class="text-[11px] font-bold text-[#8F60BF] pt-1 border-t border-[#ECD8F2]">&rarr; Khách hàng rời bỏ trước khi hòa vốn CAC</div>
               </div>
             </div>
 
             <div class="p-5 rounded-2xl bg-white border border-[#BEB6F2] panel-shadow space-y-2.5">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-bold text-[#8F60BF] uppercase">NGUYÊN NHÂN 2</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FDEEED] text-[#D93848]">BẪY HOÀN HÀNG</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FDEEED] text-[#D93848]">SỤT GIẢM CHẠM ĐÁY</span>
               </div>
-              <h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">Tỷ Lệ Hoàn Trả 19.3%</h5>
+              <h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">Bốc Hơi 100% Khách Hàng Tại Chu Kỳ M5</h5>
               <div class="p-3 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-1 text-xs font-mono">
-                <div class="flex justify-between text-[#5C5570]"><span>Đơn hoàn trễ (13–30d):</span><strong class="text-[#1E1B2E]">94 đơn</strong></div>
-                <div class="flex justify-between text-[#5C5570]"><span>Giá trị hoàn trễ:</span><strong class="text-[#D93848]">23.92M ₫</strong></div>
-                <div class="flex justify-between text-[#5C5570]"><span>Phí ship 2 chiều + Hộp:</span><strong class="text-[#D93848]">9.86M ₫</strong></div>
-                <div class="text-[11px] font-bold text-[#D93848] pt-1 border-t border-[#ECD8F2]">&rarr; Chi phí đảo chiều nuốt sạch lãi</div>
+                <div class="flex justify-between text-[#5C5570]"><span>Khách mới 2026-01:</span><strong class="text-[#1E1B2E]">100 khách</strong></div>
+                <div class="flex justify-between text-[#5C5570]"><span>Khách còn lại M4:</span><strong class="text-[#D93848]">52 khách</strong></div>
+                <div class="flex justify-between text-[#5C5570]"><span>Khách còn lại M5:</span><strong class="text-[#D93848]">0 khách (0.0%)</strong></div>
+                <div class="text-[11px] font-bold text-[#D93848] pt-1 border-t border-[#ECD8F2]">&rarr; Doanh thu định kỳ từ nhóm cũ triệt tiêu</div>
               </div>
             </div>
 
             <div class="p-5 rounded-2xl bg-white border border-[#99D9F2] panel-shadow space-y-2.5">
               <div class="flex items-center justify-between">
                 <span class="text-[11px] font-bold text-[#079DD9] uppercase">NGUYÊN NHÂN 3</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EBF6FC] text-[#079DD9]">BẪY TÍNH TRÙNG</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EBF6FC] text-[#079DD9]">LÃNG PHÍ CAC</span>
               </div>
-              <h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">Nhận Vơ Khách Tự Nhiên</h5>
+              <h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">Bình Rò Rỉ: Tăng Khách Mới Không Giữ Được</h5>
               <div class="p-3 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-1 text-xs font-mono">
-                <div class="flex justify-between text-[#5C5570]"><span>Trùng đa chạm:</span><strong class="text-[#1E1B2E]">96 giao dịch</strong></div>
-                <div class="flex justify-between text-[#5C5570]"><span>Doanh thu ảo tính đè:</span><strong class="text-[#8F60BF]">124.45M ₫</strong></div>
-                <div class="flex justify-between text-[#5C5570]"><span>Đơn VIP bị phân bổ sai:</span><strong class="text-[#079DD9]">58 đơn</strong></div>
-                <div class="text-[11px] font-bold text-[#079DD9] pt-1 border-t border-[#ECD8F2]">&rarr; Kênh không tạo khách hàng mới</div>
+                <div class="flex justify-between text-[#5C5570]"><span>Tốc độ nạp khách mới:</span><strong class="text-[#1E1B2E]">+150% (100 &rarr; 250)</strong></div>
+                <div class="flex justify-between text-[#5C5570]"><span>Thời gian gắn kết TB:</span><strong class="text-[#8F60BF]">&lt; 4.2 tháng</strong></div>
+                <div class="flex justify-between text-[#5C5570]"><span>Tổn thất LTV tiềm năng:</span><strong class="text-[#079DD9]">-40% đến -60%</strong></div>
+                <div class="text-[11px] font-bold text-[#079DD9] pt-1 border-t border-[#ECD8F2]">&rarr; Chi phí CAC phình to nhưng LTV không tích lũy</div>
               </div>
             </div>
           </div>
@@ -2606,43 +2629,43 @@
                   <i class="fa-solid fa-sitemap text-[#8F60BF]"></i>
                   <span>Mô Hình 5-Whys: Bóc Tách Từ Hiện Tượng Đến Bản Chất Quản Trị</span>
                 </h4>
-                <p class="text-xs text-[#5C5570] mt-0.5">Truy xuất chuỗi nguyên nhân khiến doanh thu báo cáo tăng nhưng tiền mặt thực tế bị âm.</p>
+                <p class="text-xs text-[#5C5570] mt-0.5">Truy xuất chuỗi nguyên nhân khiến doanh thu báo cáo tăng nhưng dòng tiền giá trị thực bị sụt giảm.</p>
               </div>
               <span class="text-xs font-mono font-bold bg-[#FAF6FD] text-[#8F60BF] px-3 py-1 rounded-lg border border-[#ECD8F2]">
                 5-WHYS DEEP DIVE
               </span>
             </div>
 
-            <div class="space-y-3 text-xs">
+            <div id="step4-five-whys-container" class="space-y-3 text-xs">
               <div class="p-3.5 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] flex items-start space-x-3">
                 <span class="px-2.5 py-1 rounded-lg bg-[#ECD8F2] text-[#8F60BF] font-mono font-bold text-[11px] flex-shrink-0">WHY 1 &bull; TRIỆU CHỨNG</span>
                 <div>
-                  <strong class="text-[#1E1B2E] text-xs">Tại sao doanh thu báo cáo rất cao (+897.71M ₫) nhưng quỹ tiền mặt thực nhận lại chạm đáy âm (-14.89M ₫)?</strong>
-                  <p class="text-[#5C5570] mt-0.5">Vì số tiền thực nhận sau đối soát thực tế bị bốc hơi gần 300 triệu đồng so với số liệu ghi nhận trên hệ thống bán lẻ ban đầu.</p>
+                  <strong class="text-[#1E1B2E] text-xs">Tại sao số lượng khách hàng nạp mới tăng mạnh từ 100 lên 250 khách/tháng nhưng doanh thu dài hạn không tăng trưởng bền vững?</strong>
+                  <p class="text-[#5C5570] mt-0.5">Do tỷ lệ rời rụng (churn) diễn ra dốc đứng qua các tháng, đặc biệt chu kỳ M5 của nhóm 2026-01 ghi nhận bằng 0 khách hoạt động.</p>
                 </div>
               </div>
 
               <div class="p-3.5 rounded-xl bg-[#FAF8FC] border border-[#ECD8F2] flex items-start space-x-3">
                 <span class="px-2.5 py-1 rounded-lg bg-[#BEB6F2]/30 text-[#8F60BF] font-mono font-bold text-[11px] flex-shrink-0">WHY 2 &bull; ĐỐI SOÁT</span>
                 <div>
-                  <strong class="text-[#1E1B2E] text-xs">Tại sao dòng tiền thực nhận bị hụt gần 300 triệu so với số liệu báo cáo xuất kho?</strong>
-                  <p class="text-[#5C5570] mt-0.5">Do hệ thống kế toán cũ chốt sổ doanh thu quá sớm tại Ngày 12 (khi đơn vừa giao thành công), hoàn toàn bỏ lọt 85.17M ₫ hoàn trả trễ ngày 13–30 và 84.52M ₫ chiết khấu voucher bị trừ thẳng trên sao kê sàn.</p>
+                  <strong class="text-[#1E1B2E] text-xs">Tại sao lượng khách hàng duy trì hoạt động lại rơi thẳng đứng từ 52 khách ở M4 xuống 0 khách ở M5?</strong>
+                  <p class="text-[#5C5570] mt-0.5">Dữ liệu cho thấy hệ thống thiếu cơ chế theo dõi chu kỳ tái mua tự nhiên sau 90 ngày; các tương tác khách hàng dừng hoàn toàn sau tháng thứ 4.</p>
                 </div>
               </div>
 
               <div class="p-3.5 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] flex items-start space-x-3">
                 <span class="px-2.5 py-1 rounded-lg bg-[#EBF6FC] text-[#079DD9] font-mono font-bold text-[11px] flex-shrink-0">WHY 3 &bull; VẬN HÀNH</span>
                 <div>
-                  <strong class="text-[#1E1B2E] text-xs">Tại sao tỷ lệ hoàn trả sau ngày 12 và chiết khấu voucher lại cao bất thường ở kênh Flash Sale?</strong>
-                  <p class="text-[#5C5570] mt-0.5">Do chính sách kích cầu tung voucher giảm giá sâu đến 26.2% kết hợp trợ giá ảo; khách hàng săn voucher để gom đơn rồi âm thầm bấm trả hàng sau 2 tuần khiến doanh nghiệp gánh trọn 2 đầu cước vận chuyển và hộp hỏng.</p>
+                  <strong class="text-[#1E1B2E] text-xs">Tại sao khách hàng hài lòng ở tháng đầu (M1 đạt 85%) nhưng lại bỏ đi hoàn toàn sau 4 tháng?</strong>
+                  <p class="text-[#5C5570] mt-0.5">Thiếu vắng chương trình chăm sóc định kỳ (Loyalty Program) và sản phẩm thiếu tính liên tục; chính sách ưu đãi chỉ tập trung vào lần mua đầu (onboarding) mà không có giá trị duy trì.</p>
                 </div>
               </div>
 
               <div class="p-3.5 rounded-xl bg-[#FAF8FC] border border-[#ECD8F2] flex items-start space-x-3">
                 <span class="px-2.5 py-1 rounded-lg bg-[#EBF6FC] text-[#079DD9] font-mono font-bold text-[11px] flex-shrink-0">WHY 4 &bull; TỔ CHỨC</span>
                 <div>
-                  <strong class="text-[#1E1B2E] text-xs">Tại sao các chiến dịch Flash Sale lỗ nặng mà đội ngũ marketing vẫn tiếp tục đẩy mạnh?</strong>
-                  <p class="text-[#5C5570] mt-0.5">Xung đột chỉ số đo lường (KPI Conflict): Marketing được giao KPI doanh số thô (GMV) để lấy thưởng thành tích, trong khi chi phí giá vốn (COGS), chi phí hoàn hàng và phí sàn lại do Phòng Kế toán & Vận hành chịu trách nhiệm hạch toán.</p>
+                  <strong class="text-[#1E1B2E] text-xs">Tại sao đội ngũ Marketing vẫn dồn ngân sách mở rộng khách mới (từ 100 lên 250) mà không tập trung giữ chân khách cũ?</strong>
+                  <p class="text-[#5C5570] mt-0.5">Xung đột chỉ số đo lường (KPI Conflict): Marketing chỉ được đánh giá bằng lượng User Mới (New Acquired Customers) để nhận thưởng, trong khi tỷ lệ giữ chân LTV lại không thuộc trách nhiệm của phòng ban nào.</p>
                 </div>
               </div>
 
@@ -2650,7 +2673,7 @@
                 <span class="px-2.5 py-1 rounded-lg bg-[#8F60BF] text-white font-mono font-bold text-[11px] flex-shrink-0">WHY 5 &bull; CỐT LÕI</span>
                 <div>
                   <strong class="text-[#8F60BF] text-xs">Nguyên nhân cốt lõi cấp Hội đồng Quản trị:</strong>
-                  <p class="text-[#1E1B2E] font-medium mt-0.5">Doanh nghiệp chưa xây dựng hệ thống đối soát dữ liệu đa kênh thời gian thực (Real-time Cross-Audit Ledger); thiếu quy chế khóa chu kỳ đối soát 30 ngày và chưa sử dụng chỉ tiêu Lợi nhuận đóng góp (Contribution Margin) làm điều kiện tiên quyết trước khi duyệt ngân sách tiếp thị.</p>
+                  <p class="text-[#1E1B2E] font-medium mt-0.5">BOD chưa thiết lập cơ chế đo lường LTV/CAC theo từng nhóm Cohort; thiếu quy chế phân bổ tối thiểu 20% ngân sách tiếp thị cho hoạt động Tái kích hoạt (Re-activation) và chăm sóc khách hàng trọn đời.</p>
                 </div>
               </div>
             </div>
@@ -2682,53 +2705,41 @@
                     <th class="p-3 text-center">Phán Quyết Quản Trị</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-[#ECD8F2]">
+                <tbody id="step4-evidence-tbody" class="divide-y divide-[#ECD8F2]">
                   <tr class="hover:bg-[#FAF8FC] transition">
-                    <td class="p-3 font-mono font-bold text-[#8F60BF]">EV-RET-01</td>
-                    <td class="p-3 font-semibold text-[#1E1B2E]">Hoàn trả trễ ngoài chu kỳ 12 ngày</td>
-                    <td class="p-3 text-[#5C5570] font-sans">
-                      <div>Phát hiện <strong>94 đơn hàng</strong> khách bấm trả hàng trong khoảng ngày 13–30 (Giá trị hàng 23.92M ₫).</div>
-                      <div class="text-[11px] text-[#5C5570] font-mono mt-0.5">Mẫu đơn: CM-ORD-113291, CM-ORD-108496, CM-ORD-102403...</div>
-                    </td>
-                    <td class="p-3 text-right font-mono font-bold text-[#D93848]">-33.78M ₫</td>
+                    <td class="p-3 font-mono font-bold text-[#8F60BF]">EV-COH-01</td>
+                    <td class="p-3 font-semibold text-[#1E1B2E]">Đứt gãy khách hàng chu kỳ M5</td>
+                    <td class="p-3 text-[#5C5570] font-sans">Nhóm Cohort 2026-01 ghi nhận 0 khách hàng ở chu kỳ M5 (suy giảm 100% so với 52 khách tại M4).</td>
+                    <td class="p-3 text-right font-mono font-bold text-[#D93848]">Bốc hơi 100% doanh thu M5</td>
                     <td class="p-3 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FDEEED] text-[#D93848]">HỦY GHI NHẬN DOANH THU</span>
+                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FDEEED] text-[#D93848]">BÁO ĐỘNG ĐỎ KIỂM TOÁN</span>
                     </td>
                   </tr>
                   <tr class="hover:bg-[#FAF8FC] transition">
-                    <td class="p-3 font-mono font-bold text-[#8F60BF]">EV-VOU-02</td>
-                    <td class="p-3 font-semibold text-[#1E1B2E]">Xói mòn chiết khấu voucher vượt trần</td>
-                    <td class="p-3 text-[#5C5570] font-sans">
-                      <div>238 giao dịch Flash Sale có voucher tích lũy &gt;20% giá trị đơn hàng (Tổng voucher khấu trừ 33.32M ₫).</div>
-                      <div class="text-[11px] text-[#5C5570] font-mono mt-0.5">Biên gộp co hẹp còn 8.2%, âm nặng so với chi phí Ads 15.1%</div>
-                    </td>
-                    <td class="p-3 text-right font-mono font-bold text-[#8F60BF]">-33.32M ₫</td>
+                    <td class="p-3 font-mono font-bold text-[#8F60BF]">EV-COH-02</td>
+                    <td class="p-3 font-semibold text-[#1E1B2E]">Điểm rơi giữ chân M3 &rarr; M4</td>
+                    <td class="p-3 text-[#5C5570] font-sans">Cohort 2026-01 và 2026-02 đều sụt giảm từ 61% xuống ~52% (mất trung bình 9-12 khách/tháng).</td>
+                    <td class="p-3 text-right font-mono font-bold text-[#8F60BF]">Tổn thất -15% quy mô khách</td>
                     <td class="p-3 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#ECD8F2] text-[#8F60BF]">ÁP HARD-CAP VOUCHER &le;10%</span>
+                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#ECD8F2] text-[#8F60BF]">THIẾT LẬP CẢNH BÁO M3</span>
                     </td>
                   </tr>
                   <tr class="hover:bg-[#FAF8FC] transition">
-                    <td class="p-3 font-mono font-bold text-[#079DD9]">EV-DUP-03</td>
-                    <td class="p-3 font-semibold text-[#1E1B2E]">Trùng lặp tiếp thị đa điểm chạm (Multi-touch)</td>
-                    <td class="p-3 text-[#5C5570] font-sans">
-                      <div><strong>96 giao dịch</strong> được cả Shopee Ads và Livestream TikTok cùng claim công trạng (Ghi đè 124.45M ₫ ảo).</div>
-                      <div class="text-[11px] text-[#5C5570] font-mono mt-0.5">Hệ số trùng lặp đạt 32.2%, chi phí marketing bị đội lên gấp đôi</div>
-                    </td>
-                    <td class="p-3 text-right font-mono font-bold text-[#8F60BF]">-45.00M ₫</td>
+                    <td class="p-3 font-mono font-bold text-[#079DD9]">EV-COH-03</td>
+                    <td class="p-3 font-semibold text-[#1E1B2E]">Tỷ lệ gắn kết ban đầu M1 khả quan</td>
+                    <td class="p-3 text-[#5C5570] font-sans">Cả 5 nhóm cohort đều đạt tỷ lệ giữ chân M1 ổn định từ 85.0% đến 85.4% (trên 187 khách giữ lại ở 2026-05).</td>
+                    <td class="p-3 text-right font-mono font-bold text-[#079DD9]">Đạt Product-Market Fit ban đầu</td>
                     <td class="p-3 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#EBF6FC] text-[#079DD9]">PHÂN BỔ CHIA ĐỀU 1/N</span>
+                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#EBF6FC] text-[#079DD9]">DUY TRÌ QUY TRÌNH ONBOARDING</span>
                     </td>
                   </tr>
                   <tr class="hover:bg-[#FAF8FC] transition">
-                    <td class="p-3 font-mono font-bold text-[#5C5570]">EV-LOG-04</td>
-                    <td class="p-3 font-semibold text-[#1E1B2E]">Tổn thất cước logistics 2 chiều &amp; bao bì</td>
-                    <td class="p-3 text-[#5C5570] font-sans">
-                      <div>Gánh trọn phí giao 30k + phí hoàn 15k + chi phí hộp rách 15k trên mỗi đơn hoàn trả trễ.</div>
-                      <div class="text-[11px] text-[#5C5570] font-mono mt-0.5">Đơn không thu được tiền nhưng mất chi phí vận hành cứng</div>
-                    </td>
-                    <td class="p-3 text-right font-mono font-bold text-[#D93848]">-15.72M ₫</td>
+                    <td class="p-3 font-mono font-bold text-[#5C5570]">EV-COH-04</td>
+                    <td class="p-3 font-semibold text-[#1E1B2E]">Nguy cơ lặp lại với Cohort 2026-02</td>
+                    <td class="p-3 text-[#5C5570] font-sans">Cohort 2026-02 hiện có 68 khách ở M4; nếu không can thiệp ngay sẽ tái diễn kịch bản về 0 tại chu kỳ M5 tới.</td>
+                    <td class="p-3 text-right font-mono font-bold text-[#D93848]">Rủi ro mất trắng 68 khách</td>
                     <td class="p-3 text-center">
-                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]">TRUY THU ĐƠN VỊ VẬN HÀNH</span>
+                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]">CAN THIỆP KHẨN CẤP</span>
                     </td>
                   </tr>
                 </tbody>
@@ -2736,118 +2747,149 @@
             </div>
           </div>
 
-          <!-- BẰNG CHỨNG KIỂM TOÁN: SO SÁNH LỢI NHUẬN QUA 4 MÔ HÌNH PHÂN BỔ (SENSITIVITY MATRIX) -->
+          <!-- BẰNG CHỨNG KIỂM TOÁN: SO SÁNH HIỆU QUẢ QUA CÁC CHU KỲ / MÔ HÌNH (SENSITIVITY MATRIX) -->
           <div class="p-5 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-3">
             <div class="flex items-center justify-between pb-2 border-b border-[#ECD8F2]">
-              <span class="text-xs sm:text-sm font-bold text-[#1E1B2E] uppercase">So Sánh Lợi Nhuận Qua 4 Mô Hình Phân Bổ</span>
-              <span class="text-[11px] font-mono text-[#079DD9] font-bold">SENSITIVITY MATRIX</span>
+              <span id="step4-comparison-title" class="text-xs sm:text-sm font-bold text-[#1E1B2E] uppercase">Ma Trận So Sánh Chu Kỳ Giữ Chân Khách Hàng Qua Các Nhóm Cohort</span>
+              <span id="step4-comparison-badge" class="text-[11px] font-mono text-[#079DD9] font-bold">RETENTION SENSITIVITY</span>
             </div>
 
-            <div class="overflow-x-auto border border-[#ECD8F2] rounded-xl bg-white">
+            <div class="overflow-x-auto border border-[#ECD8F2] rounded-xl bg-white shadow-2xs">
               <table class="w-full text-left text-xs border-collapse">
-                <thead>
+                <thead id="step4-comparison-thead">
                   <tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2] font-mono uppercase text-[11px]">
-                    <th class="p-3">Kênh / Chiến dịch</th>
-                    <th class="p-3 text-right">Linear (1/N)</th>
-                    <th class="p-3 text-right">Trọng số Voucher</th>
-                    <th class="p-3 text-right">First-Touch</th>
-                    <th class="p-3 text-right">Last-Touch</th>
-                    <th class="p-3 text-center">Kết luận</th>
+                    <th class="p-3">Nhóm Cohort</th>
+                    <th class="p-3 text-right">Khách Mới (M0)</th>
+                    <th class="p-3 text-right">Giữ Chân M1</th>
+                    <th class="p-3 text-right">Giữ Chân M3</th>
+                    <th class="p-3 text-right">Giữ Chân M5</th>
+                    <th class="p-3 text-center">Đánh Giá Trạng Thái</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-[#ECD8F2] font-mono">
+                <tbody id="step4-comparison-tbody" class="divide-y divide-[#ECD8F2] font-mono">
                   <tr class="hover:bg-[#FAF8FC]">
-                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Flash Sale Shopee</td>
-                    <td class="p-3 text-right text-[#8F60BF] font-bold">-46.70M ₫</td>
-                    <td class="p-3 text-right text-[#8F60BF] font-bold">-52.40M ₫</td>
-                    <td class="p-3 text-right text-[#8F60BF] font-bold">-38.90M ₫</td>
-                    <td class="p-3 text-right text-[#8F60BF] font-bold">-58.20M ₫</td>
-                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF]">ÂM NẶNG NHẤT</span></td>
+                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Cohort 2026-01</td>
+                    <td class="p-3 text-right text-[#1E1B2E]">100 khách</td>
+                    <td class="p-3 text-right text-[#079DD9] font-bold">85.0% (85)</td>
+                    <td class="p-3 text-right text-[#8F60BF] font-bold">61.0% (61)</td>
+                    <td class="p-3 text-right text-[#D93848] font-bold">0.0% (0)</td>
+                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#ECD8F2] text-[#8F60BF]">BÁO ĐỘNG ĐỎ</span></td>
                   </tr>
                   <tr class="hover:bg-[#FAF8FC]">
-                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Khai Xuân Combo</td>
-                    <td class="p-3 text-right text-[#079DD9] font-bold">+30.00M ₫</td>
-                    <td class="p-3 text-right text-[#079DD9] font-bold">+33.20M ₫</td>
-                    <td class="p-3 text-right text-[#079DD9] font-bold">+36.50M ₫</td>
-                    <td class="p-3 text-right text-[#079DD9] font-bold">+26.80M ₫</td>
-                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EBF6FC] text-[#079DD9]">LÃI CAO NHẤT</span></td>
+                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Cohort 2026-02</td>
+                    <td class="p-3 text-right text-[#1E1B2E]">130 khách</td>
+                    <td class="p-3 text-right text-[#079DD9] font-bold">85.4% (111)</td>
+                    <td class="p-3 text-right text-[#8F60BF] font-bold">61.5% (80)</td>
+                    <td class="p-3 text-right text-[#5C5570]">Chờ đối soát</td>
+                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">CẢNH BÁO</span></td>
                   </tr>
                   <tr class="hover:bg-[#FAF8FC]">
-                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Combo VIP Cửa Hàng</td>
-                    <td class="p-3 text-right text-[#1E1B2E]">+7.88M ₫</td>
-                    <td class="p-3 text-right text-[#1E1B2E]">+6.90M ₫</td>
-                    <td class="p-3 text-right text-[#1E1B2E]">+8.40M ₫</td>
-                    <td class="p-3 text-right text-[#1E1B2E]">+9.10M ₫</td>
-                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-[#5C5570] border border-[#EFE8F6]">ỔN ĐỊNH</span></td>
+                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Cohort 2026-03</td>
+                    <td class="p-3 text-right text-[#1E1B2E]">160 khách</td>
+                    <td class="p-3 text-right text-[#079DD9] font-bold">85.0% (136)</td>
+                    <td class="p-3 text-right text-[#8F60BF] font-bold">61.3% (98)</td>
+                    <td class="p-3 text-right text-[#5C5570]">Chưa đến hạn</td>
+                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">CẢNH BÁO</span></td>
                   </tr>
                   <tr class="hover:bg-[#FAF8FC]">
-                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Livestream TikTok</td>
-                    <td class="p-3 text-right text-[#8F60BF]">-6.07M ₫</td>
-                    <td class="p-3 text-right text-[#8F60BF]">-4.80M ₫</td>
-                    <td class="p-3 text-right text-[#8F60BF]">-8.10M ₫</td>
-                    <td class="p-3 text-right text-[#8F60BF]">-3.90M ₫</td>
-                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FAF6FD] text-[#5C5570]">CẦN SIẾT VẬN HÀNH</span></td>
+                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Cohort 2026-04</td>
+                    <td class="p-3 text-right text-[#1E1B2E]">190 khách</td>
+                    <td class="p-3 text-right text-[#079DD9] font-bold">85.3% (162)</td>
+                    <td class="p-3 text-right text-[#5C5570]">Chờ đối soát</td>
+                    <td class="p-3 text-right text-[#5C5570]">Chưa đến hạn</td>
+                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EBF6FC] text-[#079DD9]">AN TOÀN</span></td>
+                  </tr>
+                  <tr class="hover:bg-[#FAF8FC]">
+                    <td class="p-3 font-semibold font-sans text-[#1E1B2E]">Cohort 2026-05</td>
+                    <td class="p-3 text-right text-[#1E1B2E]">220 khách</td>
+                    <td class="p-3 text-right text-[#079DD9] font-bold">85.0% (187)</td>
+                    <td class="p-3 text-right text-[#5C5570]">Chờ đối soát</td>
+                    <td class="p-3 text-right text-[#5C5570]">Chưa đến hạn</td>
+                    <td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#EBF6FC] text-[#079DD9]">AN TOÀN</span></td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div class="p-3.5 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div class="flex flex-wrap items-center gap-3">
-                <div class="flex items-center space-x-1.5">
-                  <span class="font-bold text-[#1E1B2E]">Mô hình phân bổ:</span>
-                  <select id="select-attr" onchange="window.recalculateStep4()" class="bg-white border border-[#ECD8F2] rounded-xl px-2.5 py-1 font-bold text-[#8F60BF] focus:outline-none">
-                    <option value="equal_split" selected>Chia đều 1/N</option>
-                    <option value="discount_weighted">Trọng số voucher</option>
-                    <option value="first_touch">First-Touch</option>
-                    <option value="last_touch">Last-Touch</option>
-                  </select>
-                </div>
-                <div class="flex items-center space-x-1.5">
-                  <span class="font-bold text-[#1E1B2E]">Chi phí chung (80M):</span>
-                  <select id="select-cost" onchange="window.recalculateStep4()" class="bg-white border border-[#ECD8F2] rounded-xl px-2.5 py-1 font-bold text-[#8F60BF] focus:outline-none">
-                    <option value="revenue_share" selected>Tỷ trọng doanh thu</option>
-                    <option value="order_share">Tỷ trọng đơn</option>
-                    <option value="equal_share">Chia đều 4 kênh</option>
-                  </select>
-                </div>
-              </div>
-              <div class="flex items-center space-x-2">
-                <span class="font-bold text-[#1E1B2E]">Cửa sổ hoàn:</span>
-                <input type="range" id="slider-return-days" min="0" max="60" value="30" oninput="window.recalculateStep4()" class="w-24 h-1.5 bg-[#ECD8F2] rounded accent-[#8F60BF]">
-                <span id="display-return-days" class="font-mono font-bold text-[#8F60BF]">30 ngày</span>
-              </div>
-            </div>
-          </div>
-
+          <!-- BẢNG DỊCH CHUYỂN THỨ HẠNG HIỆU QUẢ THỰC TẾ (RANK SHIFT) -->
           <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow space-y-3">
-            <div class="flex justify-between items-center pb-2 border-b border-[#ECD8F2]">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#ECD8F2]">
               <div>
-                <span class="text-sm font-bold text-[#1E1B2E] uppercase">Bảng dịch chuyển thứ hạng hiệu quả thực tế (Rank Shift)</span>
-                <p class="text-xs text-[#5C5570]">So sánh thứ hạng Doanh thu ảo ban đầu với Lợi nhuận ròng thực tế sau kiểm toán.</p>
+                <span id="step4-rank-shift-title" class="text-sm font-bold text-[#1E1B2E] uppercase">Bảng Dịch Chuyển Thứ Hạng Hiệu Quả Khách Hàng Thực Tế (Rank Shift Analysis)</span>
+                <p class="text-xs text-[#5C5570]">So sánh thứ hạng quy mô số lượng ban đầu với hiệu quả giữ chân giá trị vòng đời thực tế sau kiểm toán.</p>
               </div>
-              <span id="rank-shift-rule-badge" class="text-xs font-mono font-bold text-[#8F60BF] bg-[#FAF6FD] px-3 py-1 rounded-lg border border-[#ECD8F2]">
-                Rule: Linear 1/N
+              <span id="rank-shift-rule-badge" class="text-xs font-mono font-bold text-[#8F60BF] bg-[#FAF6FD] px-3 py-1 rounded-lg border border-[#ECD8F2] self-start sm:self-auto">
+                Rule: Cohort Lifetime Decay
               </span>
             </div>
-            <div class="overflow-x-auto border border-[#ECD8F2] rounded-xl">
+            <div class="overflow-x-auto border border-[#ECD8F2] rounded-xl shadow-2xs">
               <table class="w-full text-left text-xs sm:text-sm border-collapse">
-                <thead>
-                  <tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2]">
-                    <th class="p-3">Kênh / Chiến dịch</th>
-                    <th class="p-3 text-center">Hạng Doanh thu thô</th>
-                    <th class="p-3 text-center">Hạng Lợi nhuận ròng</th>
-                    <th class="p-3 text-center">Dịch chuyển</th>
-                    <th class="p-3 text-right font-mono">Lợi nhuận ròng thực</th>
-                    <th class="p-3 text-center font-semibold">Khuyến nghị chiến lược</th>
+                <thead id="step4-rank-shift-thead">
+                  <tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2] font-mono text-[11px]">
+                    <th class="p-3">Nhóm Đối Tượng</th>
+                    <th class="p-3 text-center">Hạng Ban Đầu</th>
+                    <th class="p-3 text-center">Hạng Thực Tế</th>
+                    <th class="p-3 text-center">Dịch Chuyển</th>
+                    <th class="p-3 text-right font-mono">Chỉ Số Cốt Lõi</th>
+                    <th class="p-3 text-center font-semibold">Khuyến Nghị Quản Trị</th>
                   </tr>
                 </thead>
-                <tbody id="step4-rank-shift-body" class="divide-y divide-[#ECD8F2]"></tbody>
+                <tbody id="step4-rank-shift-body" class="divide-y divide-[#ECD8F2]">
+                  <tr class="hover:bg-[#FAF8FC] transition">
+                    <td class="p-3.5 font-semibold text-[#1E1B2E]">Cohort 2026-01</td>
+                    <td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">#6 (100 khách)</td>
+                    <td class="p-3.5 text-center font-mono font-bold text-[#8F60BF]">#6</td>
+                    <td class="p-3.5 text-center font-bold text-[#5C5570]">&harr; Giữ nguyên</td>
+                    <td class="p-3.5 text-right font-mono font-bold text-[#D93848]">0.0% tại M5</td>
+                    <td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#ECD8F2] text-[#8F60BF]">ĐIỀU TRA LỖI DỮ LIỆU / CAN THIỆP</span></td>
+                  </tr>
+                  <tr class="hover:bg-[#FAF8FC] transition">
+                    <td class="p-3.5 font-semibold text-[#1E1B2E]">Cohort 2026-02</td>
+                    <td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">#5 (130 khách)</td>
+                    <td class="p-3.5 text-center font-mono font-bold text-[#079DD9]">#1</td>
+                    <td class="p-3.5 text-center font-bold text-[#079DD9]">&uarr; Tăng 4 hạng</td>
+                    <td class="p-3.5 text-right font-mono font-bold text-[#079DD9]">52.3% tại M4</td>
+                    <td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#EBF6FC] text-[#079DD9]">TẬP TRUNG TÁI KÍCH HOẠT NGAY</span></td>
+                  </tr>
+                  <tr class="hover:bg-[#FAF8FC] transition">
+                    <td class="p-3.5 font-semibold text-[#1E1B2E]">Cohort 2026-03</td>
+                    <td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">#4 (160 khách)</td>
+                    <td class="p-3.5 text-center font-mono font-bold text-[#079DD9]">#2</td>
+                    <td class="p-3.5 text-center font-bold text-[#079DD9]">&uarr; Tăng 2 hạng</td>
+                    <td class="p-3.5 text-right font-mono font-bold text-[#079DD9]">61.3% tại M3</td>
+                    <td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">GỬI VOUCHER KÍCH THÍCH M4</span></td>
+                  </tr>
+                  <tr class="hover:bg-[#FAF8FC] transition">
+                    <td class="p-3.5 font-semibold text-[#1E1B2E]">Cohort 2026-04</td>
+                    <td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">#3 (190 khách)</td>
+                    <td class="p-3.5 text-center font-mono font-bold text-[#8F60BF]">#3</td>
+                    <td class="p-3.5 text-center font-bold text-[#5C5570]">&harr; Giữ nguyên</td>
+                    <td class="p-3.5 text-right font-mono font-bold text-[#1E1B2E]">72.1% tại M2</td>
+                    <td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]">DUY TRÌ CHĂM SÓC CHU KỲ 2</span></td>
+                  </tr>
+                  <tr class="hover:bg-[#FAF8FC] transition">
+                    <td class="p-3.5 font-semibold text-[#1E1B2E]">Cohort 2026-05</td>
+                    <td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">#2 (220 khách)</td>
+                    <td class="p-3.5 text-center font-mono font-bold text-[#8F60BF]">#4</td>
+                    <td class="p-3.5 text-center font-bold text-[#8F60BF]">&darr; Tụt 2 hạng</td>
+                    <td class="p-3.5 text-right font-mono font-bold text-[#1E1B2E]">85.0% tại M1</td>
+                    <td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]">TỐI ƯU HÓA ONBOARDING</span></td>
+                  </tr>
+                  <tr class="hover:bg-[#FAF8FC] transition">
+                    <td class="p-3.5 font-semibold text-[#1E1B2E]">Cohort 2026-06</td>
+                    <td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">#1 (250 khách)</td>
+                    <td class="p-3.5 text-center font-mono font-bold text-[#8F60BF]">#5</td>
+                    <td class="p-3.5 text-center font-bold text-[#8F60BF]">&darr; Tụt 4 hạng</td>
+                    <td class="p-3.5 text-right font-mono font-bold text-[#1E1B2E]">100% tại M0</td>
+                    <td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]">CHUẨN BỊ CHIẾN DỊCH M1</span></td>
+                  </tr>
+                </tbody>
               </table>
             </div>
-            <p id="sensitivity-summary-text" class="text-xs text-[#5C5570] pt-1 leading-relaxed"></p>
+            <p id="sensitivity-summary-text" class="text-xs text-[#5C5570] pt-1 leading-relaxed">
+              Kết luận kiểm toán: Nhóm 2026-02 là nhóm có tỷ lệ sống sót cao nhất qua mốc M4 nhưng đang đối mặt nguy cơ rơi tự do về 0 ở chu kỳ M5. Cần khẩn cấp chuyển 20% ngân sách Marketing từ nhóm 2026-06 sang giữ chân nhóm 2026-02 và 2026-03.
+            </p>
           </div>
 
           <div class="flex items-center justify-between pt-4 border-t border-[#ECD8F2]">
@@ -3931,7 +3973,11 @@
       var attrModel = attrEl ? attrEl.value : 'equal_split';
       var costModel = costEl ? costEl.value : 'revenue_share';
 
-      window.renderRankShiftTable(attrModel, costModel, returnDays / 30);
+      if (window.currentStep4Data && typeof window.renderStep4DynamicUI === 'function') {
+        window.renderStep4DynamicUI(window.currentStep4Data);
+      } else {
+        window.renderRankShiftTable(attrModel, costModel, returnDays / 30);
+      }
       if (typeof window.triggerAutoSave === 'function') window.triggerAutoSave();
     };
 
@@ -4763,6 +4809,255 @@
         });
       });
       window.renderStep3TableBody(filtered, cols);
+    };
+
+    // ==========================================
+    // BƯỚC 4: AI ROOT CAUSE & SIMULATION DYNAMIC ENGINE
+    // ==========================================
+    window.triggerStep4AiAnalysis = function(force) {
+      var spinner = document.getElementById("reanalyze-step4-spinner");
+      if (spinner) spinner.classList.add("fa-spin");
+
+      var url = force ? "/api/simulation/analyze" : "/api/simulation/latest";
+      var opts = force ? { method: "POST" } : { method: "GET" };
+
+      fetch(url, opts)
+        .then(function(res) {
+          if (!res.ok) {
+            if (!force && res.status === 404) {
+              return fetch("/api/simulation/analyze", { method: "POST" }).then(function(r) { return r.json(); });
+            }
+            throw new Error("HTTP " + res.status);
+          }
+          return res.json();
+        })
+        .then(function(data) {
+          if (data && (data.root_causes || data.rank_shift_table || data.five_whys)) {
+            window.currentStep4Data = data;
+            window.renderStep4DynamicUI(data);
+          }
+        })
+        .catch(function(err) {
+          console.warn("Lỗi tải AI Root Cause Step 4:", err);
+        })
+        .finally(function() {
+          if (spinner) spinner.classList.remove("fa-spin");
+        });
+    };
+
+    window.renderStep4DynamicUI = function(data) {
+      if (!data) return;
+
+      // 1. Tiêu đề nghiệp vụ
+      var titleEl = document.getElementById('step4-dataset-title');
+      if (titleEl) {
+        titleEl.textContent = data.dataset_title || (window.currentDiagnosisData && window.currentDiagnosisData.dataset_title) || "Phân Tích Căn Nguyên & Bằng Chứng Kiểm Toán Thực Nghiệm";
+      }
+
+      // 2. 3 Thẻ Nguyên nhân cốt lõi (Root Causes)
+      if (data.root_causes && data.root_causes.length > 0) {
+        var rootContainer = document.getElementById('step4-root-causes-container');
+        if (rootContainer) {
+          rootContainer.innerHTML = data.root_causes.map(function(c, idx) {
+            var causeNum = c.cause_number || (idx + 1);
+            var tagColor = (c.tag_color || '').toLowerCase();
+            var borderClass = "border-[#ECD8F2]";
+            var badgeClass = "bg-[#ECD8F2] text-[#8F60BF]";
+            var textTagColor = "text-[#8F60BF]";
+            var conclusionColor = "text-[#8F60BF]";
+
+            if (tagColor === 'red' || tagColor === 'danger' || idx === 1) {
+              borderClass = "border-[#BEB6F2]";
+              badgeClass = "bg-[#FDEEED] text-[#D93848]";
+              textTagColor = "text-[#8F60BF]";
+              conclusionColor = "text-[#D93848]";
+            } else if (tagColor === 'blue' || tagColor === 'cyan' || tagColor === 'info' || idx === 2) {
+              borderClass = "border-[#99D9F2]";
+              badgeClass = "bg-[#EBF6FC] text-[#079DD9]";
+              textTagColor = "text-[#079DD9]";
+              conclusionColor = "text-[#079DD9]";
+            }
+
+            var metricsHtml = (c.metrics || []).map(function(m) {
+              return '<div class="flex justify-between text-[#5C5570]"><span>' + m.label + ':</span><strong class="text-[#1E1B2E]">' + m.value + '</strong></div>';
+            }).join('');
+
+            var conclusionHtml = c.conclusion ? ('<div class="text-[11px] font-bold ' + conclusionColor + ' pt-1 border-t border-[#ECD8F2]">' + c.conclusion + '</div>') : '';
+
+            return '<div class="p-5 rounded-2xl bg-white border ' + borderClass + ' panel-shadow space-y-2.5">' +
+              '<div class="flex items-center justify-between">' +
+                '<span class="text-[11px] font-bold ' + textTagColor + ' uppercase">NGUYÊN NHÂN ' + causeNum + '</span>' +
+                '<span class="px-2 py-0.5 rounded text-[10px] font-bold ' + badgeClass + '">' + (c.tag || 'CỐT LÕI') + '</span>' +
+              '</div>' +
+              '<h5 class="text-sm sm:text-base font-extrabold text-[#1E1B2E]">' + (c.title || '') + '</h5>' +
+              '<div class="p-3 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-1 text-xs font-mono">' +
+                metricsHtml +
+                conclusionHtml +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      // 3. Sơ đồ 5 Tầng Nguyên nhân (5-Whys)
+      if (data.five_whys && data.five_whys.length > 0) {
+        var whyContainer = document.getElementById('step4-five-whys-container');
+        if (whyContainer) {
+          var whyColors = [
+            { badge: "bg-[#ECD8F2] text-[#8F60BF]", bg: "bg-[#FAF6FD]", border: "border-[#ECD8F2]" },
+            { badge: "bg-[#BEB6F2]/30 text-[#8F60BF]", bg: "bg-[#FAF8FC]", border: "border-[#ECD8F2]" },
+            { badge: "bg-[#EBF6FC] text-[#079DD9]", bg: "bg-[#FAF6FD]", border: "border-[#ECD8F2]" },
+            { badge: "bg-[#EBF6FC] text-[#079DD9]", bg: "bg-[#FAF8FC]", border: "border-[#ECD8F2]" },
+            { badge: "bg-[#8F60BF] text-white", bg: "bg-gradient-to-r from-[#FAF6FD] to-[#EBF6FC]", border: "border-2 border-[#8F60BF] shadow-xs" }
+          ];
+          whyContainer.innerHTML = data.five_whys.map(function(w, idx) {
+            var cfg = whyColors[idx] || whyColors[whyColors.length - 1];
+            var isLast = (idx === data.five_whys.length - 1);
+            var qHtml = isLast
+              ? '<strong class="text-[#8F60BF] text-xs">' + w.question + '</strong><p class="text-[#1E1B2E] font-medium mt-0.5">' + w.answer + '</p>'
+              : '<strong class="text-[#1E1B2E] text-xs">' + w.question + '</strong><p class="text-[#5C5570] mt-0.5">' + w.answer + '</p>';
+
+            return '<div class="p-3.5 rounded-xl ' + cfg.bg + ' border ' + cfg.border + ' flex items-start space-x-3">' +
+              '<span class="px-2.5 py-1 rounded-lg ' + cfg.badge + ' font-mono font-bold text-[11px] flex-shrink-0">' + (w.level || ('WHY ' + (idx + 1))) + '</span>' +
+              '<div>' + qHtml + '</div>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      // 4. Bảng Bằng chứng đối soát kiểm toán (Audit Evidence Ledger)
+      if (data.audit_evidences && data.audit_evidences.length > 0) {
+        var evTbody = document.getElementById('step4-evidence-tbody');
+        if (evTbody) {
+          evTbody.innerHTML = data.audit_evidences.map(function(ev, idx) {
+            var vType = (ev.verdict_type || '').toLowerCase();
+            var badgeClass = "bg-[#ECD8F2] text-[#8F60BF]";
+            var codeColor = "text-[#8F60BF]";
+            var impactColor = "text-[#8F60BF]";
+
+            if (vType === 'danger' || vType === 'red') {
+              badgeClass = "bg-[#FDEEED] text-[#D93848]";
+              impactColor = "text-[#D93848]";
+            } else if (vType === 'blue' || vType === 'cyan' || vType === 'info') {
+              badgeClass = "bg-[#EBF6FC] text-[#079DD9]";
+              codeColor = "text-[#079DD9]";
+              impactColor = "text-[#079DD9]";
+            } else if (vType === 'warning' || vType === 'amber') {
+              badgeClass = "bg-amber-100 text-amber-800";
+              impactColor = "text-amber-800";
+            } else if (vType === 'neutral' || vType === 'gray') {
+              badgeClass = "bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]";
+              codeColor = "text-[#5C5570]";
+              impactColor = "text-[#5C5570]";
+            }
+
+            return '<tr class="hover:bg-[#FAF8FC] transition">' +
+              '<td class="p-3 font-mono font-bold ' + codeColor + '">' + (ev.code || ('EV-' + (idx + 1))) + '</td>' +
+              '<td class="p-3 font-semibold text-[#1E1B2E]">' + (ev.risk_group || '-') + '</td>' +
+              '<td class="p-3 text-[#5C5570] font-sans">' + (ev.evidence_detail || '-') + '</td>' +
+              '<td class="p-3 text-right font-mono font-bold ' + impactColor + '">' + (ev.financial_impact || '-') + '</td>' +
+              '<td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-[11px] font-bold ' + badgeClass + '">' + (ev.verdict || 'KIỂM TOÁN') + '</span></td>' +
+            '</tr>';
+          }).join('');
+        }
+      }
+
+      // 5. Bảng Ma trận so sánh / Độ nhạy (Comparison / Sensitivity Matrix)
+      var cmp = data.comparison_table;
+      if (cmp) {
+        var cmpTitle = document.getElementById('step4-comparison-title');
+        var cmpBadge = document.getElementById('step4-comparison-badge');
+        var cmpThead = document.getElementById('step4-comparison-thead');
+        var cmpTbody = document.getElementById('step4-comparison-tbody');
+
+        if (cmpTitle && cmp.title) cmpTitle.textContent = cmp.title;
+        if (cmpBadge && cmp.badge) cmpBadge.textContent = cmp.badge;
+
+        if (cmpThead && cmp.columns && cmp.columns.length > 0) {
+          cmpThead.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2] font-mono uppercase text-[11px]">' +
+            cmp.columns.map(function(c, cIdx) {
+              var align = (cIdx === 0) ? 'text-left' : (cIdx === cmp.columns.length - 1 ? 'text-center' : 'text-right');
+              return '<th class="p-3 ' + align + '">' + c + '</th>';
+            }).join('') +
+          '</tr>';
+        }
+
+        if (cmpTbody && cmp.rows && cmp.rows.length > 0) {
+          cmpTbody.innerHTML = cmp.rows.map(function(r) {
+            var target = r.target || '';
+            var vals = r.values || [];
+            var conclusion = r.conclusion || '';
+            var cType = (r.conclusion_type || '').toLowerCase();
+            var badgeClass = 'bg-[#ECD8F2] text-[#8F60BF]';
+            if (cType === 'danger' || cType === 'red') badgeClass = 'bg-[#FDEEED] text-[#D93848]';
+            else if (cType === 'warning' || cType === 'amber') badgeClass = 'bg-amber-100 text-amber-800';
+            else if (cType === 'safe' || cType === 'green') badgeClass = 'bg-[#EBF6FC] text-[#079DD9]';
+            else if (cType === 'neutral') badgeClass = 'bg-[#FAF6FD] text-[#5C5570] border border-[#ECD8F2]';
+
+            var cells = vals.map(function(v) {
+              return '<td class="p-3 text-right text-[#1E1B2E] font-mono">' + v + '</td>';
+            }).join('');
+
+            return '<tr class="hover:bg-[#FAF8FC]">' +
+              '<td class="p-3 font-semibold font-sans text-[#1E1B2E]">' + target + '</td>' +
+              cells +
+              '<td class="p-3 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold ' + badgeClass + '">' + conclusion + '</span></td>' +
+            '</tr>';
+          }).join('');
+        }
+      }
+
+      // 6. Bảng Dịch chuyển thứ hạng hiệu quả thực tế (Rank Shift Table)
+      var rk = data.rank_shift_table;
+      if (rk) {
+        var rkTitle = document.getElementById('step4-rank-shift-title');
+        var rkBadge = document.getElementById('rank-shift-rule-badge');
+        var rkThead = document.getElementById('step4-rank-shift-thead');
+        var rkBody = document.getElementById('step4-rank-shift-body');
+        var rkSum = document.getElementById('sensitivity-summary-text');
+
+        if (rkTitle && rk.title) rkTitle.textContent = rk.title;
+        if (rkBadge && rk.rule_badge) rkBadge.textContent = rk.rule_badge;
+
+        if (rkThead && rk.columns && rk.columns.length > 0) {
+          rkThead.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#ECD8F2] font-mono text-[11px]">' +
+            rk.columns.map(function(c, cIdx) {
+              var align = (cIdx === 0) ? 'text-left' : (cIdx === 4 ? 'text-right' : 'text-center');
+              return '<th class="p-3 ' + align + '">' + c + '</th>';
+            }).join('') +
+          '</tr>';
+        }
+
+        if (rkBody && rk.rows && rk.rows.length > 0) {
+          rkBody.innerHTML = rk.rows.map(function(r) {
+            var dir = (r.shift_direction || '').toLowerCase();
+            var shiftColor = 'text-[#5C5570]';
+            if (dir === 'up' || dir === 'tang') shiftColor = 'text-[#079DD9]';
+            else if (dir === 'down' || dir === 'tut') shiftColor = 'text-[#8F60BF]';
+
+            var rec = r.recommendation || '';
+            var recBadgeClass = 'bg-white text-[#5C5570] border border-[#ECD8F2]';
+            if (rec.indexOf('DỪNG') !== -1 || rec.indexOf('KHẨN CẤP') !== -1 || rec.indexOf('CẮT') !== -1 || rec.indexOf('STOP') !== -1) {
+              recBadgeClass = 'bg-[#ECD8F2] text-[#8F60BF]';
+            } else if (rec.indexOf('MỞ RỘNG') !== -1 || rec.indexOf('TỐI ƯU') !== -1 || rec.indexOf('EXPAND') !== -1) {
+              recBadgeClass = 'bg-[#EBF6FC] text-[#079DD9]';
+            }
+
+            return '<tr class="hover:bg-[#FAF8FC] transition">' +
+              '<td class="p-3.5 font-semibold text-[#1E1B2E]">' + r.name + '</td>' +
+              '<td class="p-3.5 text-center font-mono font-medium text-[#5C5570]">' + (r.rank_old || '-') + '</td>' +
+              '<td class="p-3.5 text-center font-mono font-bold text-[#8F60BF]">' + (r.rank_new || '-') + '</td>' +
+              '<td class="p-3.5 text-center font-bold ' + shiftColor + '">' + (r.shift_label || '↔ Giữ nguyên') + '</td>' +
+              '<td class="p-3.5 text-right font-mono font-bold text-[#1E1B2E]">' + (r.actual_metric || '-') + '</td>' +
+              '<td class="p-3.5 text-center font-sans"><span class="px-2.5 py-1 rounded-full text-xs font-bold ' + recBadgeClass + '">' + rec + '</span></td>' +
+            '</tr>';
+          }).join('');
+        }
+
+        if (rkSum && rk.summary_text) {
+          rkSum.innerHTML = '<strong>Đánh giá kiểm toán & điều hành:</strong> ' + rk.summary_text;
+        }
+      }
     };
 
     // CÁC HÀM XỬ LÝ MODAL DATASET, PHÂN TRANG VÀ XUẤT TỆP

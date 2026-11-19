@@ -67,6 +67,8 @@ export default function Home() {
   const [cleansingPlanData, setCleansingPlanData] = useState<any>(null);
   const [diagnosisData, setDiagnosisData] = useState<any>(null);
   const [isRefreshingDiagnosis, setIsRefreshingDiagnosis] = useState<boolean>(false);
+  const [step4Data, setStep4Data] = useState<any>(null);
+  const [isRefreshingStep4, setIsRefreshingStep4] = useState<boolean>(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -91,6 +93,29 @@ export default function Home() {
         .catch(() => {})
         .finally(() => setIsRefreshingDiagnosis(false));
     }
+  };
+
+  const fetchStep4 = (force?: boolean) => {
+    setIsRefreshingStep4(true);
+    const url = force ? "/api/simulation/analyze" : "/api/simulation/latest";
+    const opts = force ? { method: "POST" } : { method: "GET" };
+    fetch(url, opts)
+      .then((r) => {
+        if (!r.ok) {
+          if (!force && r.status === 404) {
+            return fetch("/api/simulation/analyze", { method: "POST" }).then((res) => res.json());
+          }
+          throw new Error("HTTP " + r.status);
+        }
+        return r.json();
+      })
+      .then((d) => {
+        if (d && (d.root_causes || d.rank_shift_table || d.five_whys)) {
+          setStep4Data(d);
+        }
+      })
+      .catch((err) => console.warn("Lỗi tải Step 4:", err))
+      .finally(() => setIsRefreshingStep4(false));
   };
 
   // 1. Initial health check & sample load / state restoration
@@ -125,7 +150,7 @@ export default function Home() {
     loadSampleData("sample_data.csv");
   }, []);
 
-  // Auto-fetch diagnosis and cleansing data when arriving at Step 3 if not loaded
+  // Auto-fetch diagnosis and cleansing data when arriving at Step 3 or Step 4 if not loaded
   useEffect(() => {
     if (currentStep === 3) {
       if (!diagnosisData) fetchDiagnosis();
@@ -137,8 +162,10 @@ export default function Home() {
           })
           .catch(() => {});
       }
+    } else if (currentStep === 4) {
+      if (!step4Data) fetchStep4(false);
     }
-  }, [currentStep, diagnosisData, cleansingPlanData]);
+  }, [currentStep, diagnosisData, cleansingPlanData, step4Data]);
 
   // 2. Persist state to localStorage on changes
   useEffect(() => {
@@ -214,8 +241,10 @@ export default function Home() {
           })
           .catch((err) => console.warn("Lỗi phân tích cleansing:", err));
 
+        setStep4Data(null);
         fetchDiagnosis(fileObj);
       } else {
+        setStep4Data(null);
         fetchDiagnosis();
       }
 
@@ -447,6 +476,9 @@ export default function Home() {
               activeDimension={activeDimension}
               onDimensionChange={handleDimensionChange}
               onProceedToStep5={() => setCurrentStep(5)}
+              step4Data={step4Data}
+              onRefreshStep4={() => fetchStep4(true)}
+              isRefreshingStep4={isRefreshingStep4}
             />
           )}
 
