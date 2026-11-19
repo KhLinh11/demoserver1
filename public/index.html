@@ -1689,9 +1689,15 @@
           window.recalculateStep4();
         }
       } else if (stepNum === 5) {
-        if (typeof window.renderAllTables === 'function') window.renderAllTables();
-        if (typeof window.initOrUpdateCharts === 'function') {
-          setTimeout(function() { window.initOrUpdateCharts(); }, 150);
+        if (window.currentStep5Data && typeof window.renderStep5DynamicUI === 'function') {
+          window.renderStep5DynamicUI(window.currentStep5Data);
+        } else if (typeof window.triggerStep5AiAnalysis === 'function') {
+          window.triggerStep5AiAnalysis(false);
+        } else {
+          if (typeof window.renderAllTables === 'function') window.renderAllTables();
+          if (typeof window.initOrUpdateCharts === 'function') {
+            setTimeout(function() { window.initOrUpdateCharts(); }, 150);
+          }
         }
       }
 
@@ -2909,9 +2915,13 @@
           <div class="border-b border-[#ECD8F2] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 class="text-xl font-bold text-[#1E1B2E]">Bước 5: Tổng kết &amp; Báo cáo điều hành</h2>
-              <p class="text-sm text-[#5C5570] mt-1">Dữ liệu đã chuẩn hóa 100% · Bóc tách 298.13M ₫ doanh thu ảo · Quét trọn 30 ngày đối soát.</p>
+              <p id="step5-dataset-subtitle" class="text-sm text-[#5C5570] mt-1">Dữ liệu đã chuẩn hóa 100% · Trực quan hóa dữ liệu bằng Scikit-Learn &amp; Báo cáo điều hành AI.</p>
             </div>
             <div class="flex items-center space-x-2">
+              <button id="btn-reanalyze-step5" onclick="window.triggerStep5AiAnalysis(true)" class="px-3.5 py-2 rounded-xl bg-white border border-[#BEB6F2] text-[#8F60BF] hover:bg-[#FAF8FC] text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer">
+                <i id="reanalyze-step5-spinner" class="fa-solid fa-rotate text-[#079DD9]"></i>
+                <span>AI Phân Tích Lại Bước 5</span>
+              </button>
               <button onclick="toggleExecutiveReportModal()" class="px-4 py-2 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs">
                 <i class="fa-solid fa-file-invoice text-xs text-[#99D9F2]"></i>
                 <span>Xem Báo Cáo Nhanh</span>
@@ -2923,7 +2933,7 @@
           </div>
 
           <!-- 1. 4 THẺ KPI ĐIỀU HÀNH -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div id="step5-kpis-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="p-5 rounded-2xl bg-white border border-[#ECD8F2] panel-shadow">
               <div class="text-xs font-bold text-[#5C5570] uppercase">Doanh thu thực tế</div>
               <div class="text-2xl sm:text-3xl font-extrabold font-mono text-[#1E1B2E] mt-1.5">599.58M ₫</div>
@@ -2946,8 +2956,8 @@
             </div>
           </div>
 
-          <!-- 2. CỤM 4 BIỂU ĐỒ CHUYÊN SÂU KÈM DẢI PHÂN TÍCH MŨI TÊN -->
-          <div class="space-y-6">
+          <!-- 2. CỤM 4 BIỂU ĐỒ CHUYÊN SÂU KÈM DẢI PHÂN TÍCH MŨI TÊN (SKLEARN & SEABORN DYNAMIC CHARTS) -->
+          <div id="step5-charts-container" class="space-y-6">
             <div class="p-6 rounded-2xl bg-white border border-[#EFE8F6] panel-shadow space-y-4">
               <div class="flex justify-between items-center pb-2 border-b border-[#EFE8F6]">
                 <h4 class="text-sm sm:text-base font-bold text-[#1E1B2E]">1. Thác Nước Khấu Trừ Dòng Tiền &amp; Lợi Nhuận (Profit Waterfall)</h4>
@@ -3041,7 +3051,7 @@
               </span>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
+            <div id="step5-actions-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
               <div class="p-4 rounded-xl bg-[#FAF8FC] border border-[#ECD8F2] space-y-2">
                 <span class="font-bold text-[#8F60BF] uppercase text-[11px] block">Biện pháp 1: Khóa van rò rỉ Flash Sale</span>
                 <p class="text-[#1E1B2E] font-semibold text-xs sm:text-sm">Dừng toàn bộ chi phí quảng cáo và hủy mã giảm giá gộp</p>
@@ -3107,7 +3117,7 @@
                     <th class="p-3 text-center">Mức độ đạt</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-[#ECD8F2]">
+                <tbody id="step5-evaluation-tbody" class="divide-y divide-[#ECD8F2]">
                   <tr class="hover:bg-[#FAF8FC]">
                     <td class="p-3 font-semibold text-[#1E1B2E]">1. Bóc tách doanh thu ảo do trùng lặp</td>
                     <td class="p-3 text-xs text-[#5C5570] font-sans">Doanh thu ghi nhận hợp lệ</td>
@@ -3159,7 +3169,7 @@
               <h4 class="text-sm sm:text-base font-bold text-[#1E1B2E] uppercase">Lộ Trình Hành Động Dành Cho Ban Giám Đốc (30–60–90 Ngày)</h4>
               <span class="text-xs font-mono font-bold text-[#8F60BF]">ACTION PLAN</span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+            <div id="step5-roadmap-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
               <div class="p-4 rounded-xl bg-white border border-[#ECD8F2] space-y-1.5">
                 <span class="font-bold text-[#8F60BF] text-xs uppercase block">1–30 Ngày: Cắt lỗ</span>
                 <p class="font-semibold text-[#1E1B2E]">Dừng Kênh Flash Sale Shopee</p>
@@ -3180,12 +3190,12 @@
 
           <div class="p-6 rounded-2xl bg-white border border-[#EFE8F6] panel-shadow space-y-4">
             <div class="flex justify-between items-center pb-2 border-b border-[#EFE8F6]">
-              <h3 class="text-sm sm:text-base font-bold text-[#1E1B2E] uppercase">Bảng P&amp;L 12 Dòng Chuẩn Kế Toán Quản Trị</h3>
-              <span class="text-xs text-[#5C5570] font-mono">100% Cân bằng số học</span>
+              <h3 id="pnl-table-title" class="text-sm sm:text-base font-bold text-[#1E1B2E] uppercase">Bảng P&amp;L 12 Dòng Chuẩn Kế Toán Quản Trị</h3>
+              <span id="pnl-table-subtitle" class="text-xs text-[#5C5570] font-mono">100% Cân bằng số học</span>
             </div>
             <div class="overflow-x-auto border border-[#EFE8F6] rounded-xl">
               <table class="w-full text-left text-xs sm:text-sm border-collapse">
-                <thead>
+                <thead id="pnl-table-head">
                   <tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#EFE8F6]">
                     <th class="p-3">Chỉ tiêu tài chính</th>
                     <th class="p-3 text-right font-mono">Flash Sale</th>
@@ -5056,6 +5066,215 @@
 
         if (rkSum && rk.summary_text) {
           rkSum.innerHTML = '<strong>Đánh giá kiểm toán & điều hành:</strong> ' + rk.summary_text;
+        }
+      }
+    };
+
+    // ==========================================
+    // BƯỚC 5: AI EXECUTIVE REPORT & SCIKIT-LEARN CHARTS DYNAMIC ENGINE
+    // ==========================================
+    window.triggerStep5AiAnalysis = function(force) {
+      var spinner = document.getElementById("reanalyze-step5-spinner");
+      if (spinner) spinner.classList.add("fa-spin");
+
+      var url = force ? "/api/executive/analyze" : "/api/executive/latest";
+      var opts = force ? { method: "POST" } : { method: "GET" };
+
+      fetch(url, opts)
+        .then(function(res) {
+          if (!res.ok) {
+            if (!force && res.status === 404) {
+              return fetch("/api/executive/analyze", { method: "POST" }).then(function(r) { return r.json(); });
+            }
+            throw new Error("HTTP " + res.status);
+          }
+          return res.json();
+        })
+        .then(function(data) {
+          if (data && (data.charts || data.kpis || data.corrective_actions)) {
+            window.currentStep5Data = data;
+            window.renderStep5DynamicUI(data);
+          }
+        })
+        .catch(function(err) {
+          console.warn("Lỗi tải AI Executive Step 5:", err);
+        })
+        .finally(function() {
+          if (spinner) spinner.classList.remove("fa-spin");
+        });
+    };
+
+    window.renderStep5DynamicUI = function(data) {
+      if (!data) return;
+
+      // 1. Tiêu đề / Phụ đề
+      var subEl = document.getElementById("step5-dataset-subtitle");
+      if (subEl) {
+        var title = data.dataset_title || (window.currentDiagnosisData && window.currentDiagnosisData.dataset_title) || "";
+        subEl.textContent = (title ? title + " · " : "") + "Dữ liệu đã chuẩn hóa 100% · Trực quan hóa dữ liệu bằng Scikit-Learn & Báo cáo điều hành AI.";
+      }
+
+      // 2. 4 Thẻ KPI điều hành
+      if (data.kpis && data.kpis.length >= 4) {
+        var kpisContainer = document.getElementById("step5-kpis-container");
+        if (kpisContainer) {
+          var borderColors = ["border-[#ECD8F2]", "border-[#BEB6F2]", "border-[#ECD8F2]", "border-[#BEB6F2]"];
+          var valColors = ["text-[#1E1B2E]", "text-[#079DD9]", "text-[#8F60BF]", "text-[#8F60BF]"];
+          kpisContainer.innerHTML = data.kpis.slice(0, 4).map(function(k, idx) {
+            return '<div class="p-5 rounded-2xl bg-white border ' + borderColors[idx] + ' panel-shadow">' +
+              '<div class="text-xs font-bold text-[#5C5570] uppercase">' + k.title + '</div>' +
+              '<div class="text-2xl sm:text-3xl font-extrabold font-mono ' + valColors[idx] + ' mt-1.5">' + k.value + '</div>' +
+              '<div class="text-xs text-[#8F60BF] font-semibold mt-1">' + k.subtext + '</div>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      // 3. Cụm 4 Biểu đồ chuyên sâu Scikit-Learn & Seaborn
+      if (data.charts && data.charts.length > 0) {
+        var chartsContainer = document.getElementById("step5-charts-container");
+        if (chartsContainer) {
+          chartsContainer.innerHTML = data.charts.map(function(c) {
+            return '<div class="p-6 rounded-2xl bg-white border border-[#EFE8F6] panel-shadow space-y-4">' +
+              '<div class="flex justify-between items-center pb-2 border-b border-[#EFE8F6]">' +
+                '<h4 class="text-sm sm:text-base font-bold text-[#1E1B2E] flex items-center space-x-2">' +
+                  '<i class="fa-solid fa-chart-simple text-[#8F60BF]"></i>' +
+                  '<span>' + c.title + '</span>' +
+                '</h4>' +
+                '<span class="text-xs text-[#079DD9] font-mono font-bold bg-[#EBF6FC] px-2.5 py-1 rounded-lg border border-[#99D9F2]/50">' + c.badge + '</span>' +
+              '</div>' +
+              '<div class="rounded-xl overflow-hidden border border-[#ECD8F2] bg-[#FAF8FC] flex justify-center items-center p-2">' +
+                '<img src="' + c.image_base64 + '" alt="' + c.title + '" class="max-h-96 w-auto object-contain rounded-lg shadow-2xs">' +
+              '</div>' +
+              '<div class="p-4 rounded-xl bg-[#FAF8FC] border border-[#EFE8F6] space-y-2 text-xs">' +
+                '<div class="flex items-start space-x-2 text-[#1E1B2E]">' +
+                  '<span class="font-bold text-[#8F60BF] flex-shrink-0">Xu hướng &amp; Quy luật dữ liệu →</span>' +
+                  '<span class="text-[#5C5570]">' + (c.trend_observation || '-') + '</span>' +
+                '</div>' +
+                '<div class="flex items-start space-x-2 text-[#1E1B2E] pt-1.5 border-t border-[#EFE8F6]">' +
+                  '<span class="font-bold text-[#079DD9] flex-shrink-0">Bản chất dòng tiền / Hành động điều hành ↳</span>' +
+                  '<span class="text-[#1E1B2E] font-medium">' + (c.actionable_directive || '-') + '</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      // 4. Đề xuất biện pháp xử lý trọng yếu (Corrective Actions)
+      if (data.corrective_actions && data.corrective_actions.length > 0) {
+        var actionsContainer = document.getElementById("step5-actions-container");
+        if (actionsContainer) {
+          actionsContainer.innerHTML = data.corrective_actions.map(function(act, idx) {
+            var colorClass = (idx % 2 === 0) ? "text-[#8F60BF]" : "text-[#079DD9]";
+            var detailsHtml = (act.details || []).map(function(d) {
+              return '<li>' + d + '</li>';
+            }).join('');
+
+            return '<div class="p-4 rounded-xl bg-[#FAF8FC] border border-[#ECD8F2] space-y-2">' +
+              '<span class="font-bold ' + colorClass + ' uppercase text-[11px] block">' + (act.title || ('Biện pháp ' + (idx + 1))) + '</span>' +
+              '<p class="text-[#1E1B2E] font-semibold text-xs sm:text-sm">' + (act.summary || '') + '</p>' +
+              '<ul class="text-xs text-[#5C5570] space-y-1 list-disc pl-4">' +
+                detailsHtml +
+              '</ul>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      // 5. Bảng đối soát kỳ vọng Ban Giám Đốc (KPI Evaluations)
+      if (data.kpi_evaluations && data.kpi_evaluations.length > 0) {
+        var evalTbody = document.getElementById("step5-evaluation-tbody");
+        if (evalTbody) {
+          evalTbody.innerHTML = data.kpi_evaluations.map(function(ev) {
+            return '<tr class="hover:bg-[#FAF8FC]">' +
+              '<td class="p-3 font-semibold text-[#1E1B2E]">' + ev.objective + '</td>' +
+              '<td class="p-3 text-xs text-[#5C5570] font-sans">' + ev.metric + '</td>' +
+              '<td class="p-3 text-right font-mono text-[#5C5570]">' + ev.before_audit + '</td>' +
+              '<td class="p-3 text-right font-mono font-bold text-[#8F60BF]">' + ev.after_audit + '</td>' +
+              '<td class="p-3 text-right font-mono font-bold text-[#079DD9]">' + ev.optimized_target + '</td>' +
+              '<td class="p-3 text-center"><span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#EBF6FC] text-[#079DD9]"><i class="fa-solid fa-check mr-1"></i>' + ev.achievement_status + '</span></td>' +
+            '</tr>';
+          }).join('');
+        }
+      }
+
+      // 6. Lộ trình 30-60-90 Ngày (Roadmap)
+      if (data.roadmap_30_60_90) {
+        var rmContainer = document.getElementById("step5-roadmap-container");
+        if (rmContainer) {
+          var rm = data.roadmap_30_60_90;
+          var phases = [rm.days_1_30, rm.days_31_60, rm.days_61_90].filter(Boolean);
+          var borderMap = ["border-[#ECD8F2]", "border-[#BEB6F2]", "border-[#99D9F2]"];
+          var colorMap = ["text-[#8F60BF]", "text-[#079DD9]", "text-[#1E1B2E]"];
+          rmContainer.innerHTML = phases.map(function(p, pIdx) {
+            return '<div class="p-4 rounded-xl bg-white ' + borderMap[pIdx] + ' space-y-1.5">' +
+              '<span class="font-bold ' + colorMap[pIdx] + ' text-xs uppercase block">' + p.phase + '</span>' +
+              '<p class="font-semibold text-[#1E1B2E]">' + p.title + '</p>' +
+              '<p class="text-xs text-[#5C5570]">' + p.description + '</p>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      // 7. Bảng P&L / Báo cáo sổ cái tài chính & quản trị (Financial Table)
+      if (data.financial_table) {
+        var ft = data.financial_table;
+        var pnlTitle = document.getElementById("pnl-table-title");
+        var pnlSub = document.getElementById("pnl-table-subtitle");
+        var pnlHead = document.getElementById("pnl-table-head");
+        var pnlBody = document.getElementById("pnl-table-body");
+
+        if (pnlTitle && ft.title) pnlTitle.textContent = ft.title;
+        if (pnlSub && ft.subtitle) pnlSub.textContent = ft.subtitle;
+
+        if (pnlHead && ft.columns && ft.columns.length > 0) {
+          pnlHead.innerHTML = '<tr class="bg-[#FAF8FC] text-[#5C5570] border-b border-[#EFE8F6]">' +
+            ft.columns.map(function(col, cIdx) {
+              var align = (cIdx === 0) ? 'text-left' : 'text-right font-mono';
+              var isLast = (cIdx === ft.columns.length - 1);
+              return '<th class="p-3 ' + align + ' ' + (isLast ? 'font-bold text-[#1E1B2E] bg-[#FAF8FC]' : '') + '">' + col + '</th>';
+            }).join('') +
+          '</tr>';
+        }
+
+        if (pnlBody && ft.rows && ft.rows.length > 0) {
+          pnlBody.innerHTML = ft.rows.map(function(r) {
+            var highlightClass = r.is_highlight ? "font-bold bg-[#FAF6FD]/60 text-[#8F60BF]" : "text-[#1E1B2E]";
+            var cells = (r.values || []).map(function(v, vIdx) {
+              var isLast = (vIdx === (r.values.length - 1));
+              return '<td class="p-3 text-right font-mono ' + (isLast ? 'font-bold' : '') + '">' + v + '</td>';
+            }).join('');
+
+            return '<tr class="hover:bg-[#FAF8FC] ' + highlightClass + '">' +
+              '<td class="p-3 font-semibold">' + r.name + '</td>' +
+              cells +
+            '</tr>';
+          }).join('');
+        }
+      }
+
+      // 8. Ký duyệt ngân sách & quyết định điều hành (HITL-2 Sign-off Cards)
+      if (data.hitl2_cards && data.hitl2_cards.length > 0) {
+        var hitl2Container = document.getElementById("step5-recommendations-container");
+        if (hitl2Container) {
+          hitl2Container.innerHTML = data.hitl2_cards.map(function(h) {
+            var sType = (h.status_type || "").toLowerCase();
+            var badgeClass = "bg-white border border-[#EFE8F6] text-[#5C5570]";
+            if (sType === "expand" || h.status.indexOf("EXPAND") !== -1) {
+              badgeClass = "bg-[#FAF6FD] border border-[#8F60BF] text-[#8F60BF]";
+            } else if (sType === "stop" || h.status.indexOf("STOP") !== -1) {
+              badgeClass = "bg-[#ECD8F2] text-[#8F60BF]";
+            } else if (sType === "restructure" || h.status.indexOf("RESTRUCTURE") !== -1) {
+              badgeClass = "bg-amber-100 text-amber-800 border border-amber-200";
+            }
+
+            return '<div class="p-4 rounded-xl bg-[#FAF8FC] border border-[#EFE8F6] text-center">' +
+              '<span class="font-bold text-[#1E1B2E] block mb-1 uppercase">' + h.name + '</span>' +
+              '<span class="text-xs font-black px-2.5 py-0.5 rounded ' + badgeClass + '">' + h.status + '</span>' +
+              '<p class="text-xs text-[#5C5570] mt-2">' + h.description + '</p>' +
+            '</div>';
+          }).join('');
         }
       }
     };

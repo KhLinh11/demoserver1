@@ -69,6 +69,8 @@ export default function Home() {
   const [isRefreshingDiagnosis, setIsRefreshingDiagnosis] = useState<boolean>(false);
   const [step4Data, setStep4Data] = useState<any>(null);
   const [isRefreshingStep4, setIsRefreshingStep4] = useState<boolean>(false);
+  const [step5Data, setStep5Data] = useState<any>(null);
+  const [isRefreshingStep5, setIsRefreshingStep5] = useState<boolean>(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -118,6 +120,29 @@ export default function Home() {
       .finally(() => setIsRefreshingStep4(false));
   };
 
+  const fetchStep5 = (force?: boolean) => {
+    setIsRefreshingStep5(true);
+    const url = force ? "/api/executive/analyze" : "/api/executive/latest";
+    const opts = force ? { method: "POST" } : { method: "GET" };
+    fetch(url, opts)
+      .then((r) => {
+        if (!r.ok) {
+          if (!force && r.status === 404) {
+            return fetch("/api/executive/analyze", { method: "POST" }).then((res) => res.json());
+          }
+          throw new Error("HTTP " + r.status);
+        }
+        return r.json();
+      })
+      .then((d) => {
+        if (d && (d.charts || d.kpis || d.corrective_actions)) {
+          setStep5Data(d);
+        }
+      })
+      .catch((err) => console.warn("Lỗi tải Step 5:", err))
+      .finally(() => setIsRefreshingStep5(false));
+  };
+
   // 1. Initial health check & sample load / state restoration
   useEffect(() => {
     checkBackendHealth().then((isOnline) => {
@@ -164,8 +189,10 @@ export default function Home() {
       }
     } else if (currentStep === 4) {
       if (!step4Data) fetchStep4(false);
+    } else if (currentStep === 5) {
+      if (!step5Data) fetchStep5(false);
     }
-  }, [currentStep, diagnosisData, cleansingPlanData, step4Data]);
+  }, [currentStep, diagnosisData, cleansingPlanData, step4Data, step5Data]);
 
   // 2. Persist state to localStorage on changes
   useEffect(() => {
@@ -242,9 +269,11 @@ export default function Home() {
           .catch((err) => console.warn("Lỗi phân tích cleansing:", err));
 
         setStep4Data(null);
+        setStep5Data(null);
         fetchDiagnosis(fileObj);
       } else {
         setStep4Data(null);
+        setStep5Data(null);
         fetchDiagnosis();
       }
 
@@ -497,6 +526,9 @@ export default function Home() {
                   "✅ Ký Duyệt Thành Công!\n\nBan Giám Đốc đã phê duyệt phương án chốt sổ và điều chuyển ngân sách. Chữ ký số đã được lưu vào sổ cái kiểm toán.",
                 );
               }}
+              step5Data={step5Data}
+              onRefreshStep5={() => fetchStep5(true)}
+              isRefreshingStep5={isRefreshingStep5}
             />
           )}
         </main>
