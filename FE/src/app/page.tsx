@@ -355,6 +355,20 @@ export default function Home() {
     }
   };
 
+  // Tải trực tiếp PDF chuẩn in A4 ReportLab vector từ máy chủ (chuẩn xác 100%, không bao giờ lỗi trang trắng hay xén chữ)
+  const handleDownloadServerPdf = () => {
+    const safeCompany = companyName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, "_");
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_Chuan_In_${safeCompany}_${today}.pdf`;
+
+    const a = document.createElement("a");
+    a.href = "/api/step5/export/pdf";
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // PDF Export toàn trang Bước 5
   const handleDownloadPdf = async () => {
     try {
@@ -384,8 +398,9 @@ export default function Home() {
       const today = new Date().toISOString().slice(0, 10);
       const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_${safeCompany}_${today}.pdf`;
 
+      // Cấu hình tối ưu loại bỏ trang trắng và chống xén lề trái
       const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [10, 10, 10, 10],
         filename,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
@@ -393,10 +408,12 @@ export default function Home() {
           useCORS: true,
           logging: false,
           backgroundColor: "#FFFFFF",
-          windowWidth: 1200,
+          windowWidth: 800,
+          scrollX: 0,
+          scrollY: 0,
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        pagebreak: { mode: ["css", "legacy"] }, // Loại bỏ "avoid-all" để không sinh trang trắng
       };
 
       await html2pdf().set(opt).from(targetElement).save();
@@ -407,11 +424,11 @@ export default function Home() {
       });
 
       alert(
-        `✅ Tải Báo Cáo PDF Toàn Trang Thành Công!\n\nToàn bộ trang Bước 5 (bao gồm các biểu đồ Scikit-Learn/Seaborn, bảng số liệu, lộ trình hành động và chữ ký kiểm toán) đã được xuất thành tệp PDF:\n${filename}`,
+        `✅ Xuất Báo Cáo PDF Toàn Trang Thành Công!\n\nToàn bộ trang Bước 5 (bao gồm 4 biểu đồ phân tích Kênh bán & Thời gian, bảng P&L và chữ ký kiểm toán) đã được tải xuống:\n${filename}`,
       );
     } catch (err: any) {
       console.error("Lỗi xuất PDF Bước 5:", err);
-      window.print();
+      handleDownloadServerPdf();
     }
   };
 
@@ -617,6 +634,7 @@ export default function Home() {
               activeDimension={activeDimension}
               onDimensionChange={handleDimensionChange}
               onDownloadPdf={handleDownloadPdf}
+              onDownloadServerPdf={handleDownloadServerPdf}
               onOpenExecutiveModal={() => setIsExecutiveModalOpen(true)}
               onApproveHitl2={() => {
                 setHitl2Approved(true);

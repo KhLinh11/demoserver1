@@ -487,3 +487,286 @@ def generate_pdf_report(run_info: RunInfo, pnl_summary: PnLSummary) -> bytes:
 
     doc.build(elements)
     return buffer.getvalue()
+
+
+def generate_step5_executive_pdf(step5_data: dict) -> bytes:
+    """Tạo báo cáo điều hành Bước 5 toàn diện chuẩn A4 sắc nét bằng ReportLab, nhúng 4 biểu đồ và P&L."""
+    setup_pdf_fonts()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=32,
+        rightMargin=32,
+        topMargin=32,
+        bottomMargin=32,
+    )
+
+    import base64
+    styles = getSampleStyleSheet()
+
+    def get_style(name, font="DejaVuSans", size=9, leading=12, color=colors.HexColor("#1E1B2E"), bold=False):
+        fn = "DejaVuSans-Bold" if bold else "DejaVuSans"
+        return ParagraphStyle(name, fontName=fn, fontSize=size, leading=leading, textColor=color)
+
+    title_style = get_style("DocTitle", size=15, leading=18, color=colors.HexColor("#4D2678"), bold=True)
+    subtitle_style = get_style("DocSub", size=8.5, leading=11, color=colors.HexColor("#5C5570"))
+    h2_style = get_style("H2", size=11, leading=14, color=colors.HexColor("#8F60BF"), bold=True)
+    body_style = get_style("Body", size=8.5, leading=12, color=colors.HexColor("#1E1B2E"))
+    callout_style = get_style("Callout", size=8, leading=11, color=colors.HexColor("#4D2678"))
+    small_style = get_style("Small", size=7.5, leading=10, color=colors.HexColor("#5C5570"))
+
+    elements = []
+
+    # =========================================================================
+    # TRANG 1: HEADER BANNER + 4 KPI CARDS + BIỂU ĐỒ 1 (BAR CHART)
+    # =========================================================================
+    dataset_title = step5_data.get("dataset_title", "Báo Cáo Tổng Kết & Phân Tích Điều Hành Ban Giám Đốc")
+    header_data = [
+        [
+            Paragraph("<b>VITARA GROWTH AUDITOR</b><br/><font size=7 color='#5C5570'>Hệ Thống Kiểm Toán Dòng Tiền & Quản Trị Rủi Ro Đa Kênh</font>", body_style),
+            Paragraph(f"<b>BÁO CÁO ĐIỀU HÀNH BƯỚC 5</b><br/><font size=7 color='#079DD9'>Dữ liệu thực tế: {dataset_title}</font>", get_style("HeadR", size=9, leading=12, color=colors.HexColor("#8F60BF"), bold=True)),
+        ]
+    ]
+    t_head = Table(header_data, colWidths=[280, 250])
+    t_head.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(t_head)
+    elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#8F60BF"), spaceBefore=4, spaceAfter=10))
+
+    # 4 Thẻ KPI điều hành
+    kpis = step5_data.get("kpis", [])
+    if kpis:
+        kpi_cells = []
+        for k in kpis[:4]:
+            t = k.get("title", "Chỉ Số")
+            v = k.get("value", "0 ₫")
+            s = k.get("subtext", "")
+            cell_p = Paragraph(f"<b><font size=7.5 color='#5C5570'>{t.upper()}</font></b><br/><font size=12 color='#8F60BF'><b>{v}</b></font><br/><font size=7 color='#5C5570'>{s}</font>", body_style)
+            kpi_cells.append(cell_p)
+
+        while len(kpi_cells) < 4:
+            kpi_cells.append(Paragraph("", body_style))
+
+        kpi_table = Table([[kpi_cells[0], kpi_cells[1], kpi_cells[2], kpi_cells[3]]], colWidths=[132, 132, 132, 132])
+        kpi_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAF8FC")),
+            ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#ECD8F2")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#ECD8F2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(kpi_table)
+        elements.append(Spacer(1, 12))
+
+    # Biểu đồ 1: Bar Chart
+    charts = step5_data.get("charts", [])
+    c1 = next((c for c in charts if c.get("id") == "chart_1"), None) or (charts[0] if charts else None)
+    if c1 and "image_base64" in c1:
+        elements.append(Paragraph(f"<b>I. {c1.get('title', 'Biểu Đồ Cột So Sánh Doanh Thu & Lợi Nhuận')}</b>", h2_style))
+        elements.append(Spacer(1, 4))
+        try:
+            raw_b64 = c1["image_base64"].split(",", 1)[1] if "," in c1["image_base64"] else c1["image_base64"]
+            img_data = base64.b64decode(raw_b64)
+            img_buf = io.BytesIO(img_data)
+            img_flow = Image(img_buf, width=530, height=225)
+            elements.append(img_flow)
+            elements.append(Spacer(1, 4))
+        except Exception as e:
+            logger.warning(f"Lỗi nhúng biểu đồ 1 vào PDF: {e}")
+
+        c1_box = Table(
+            [[
+                Paragraph(
+                    f"• <b>Quy luật dữ liệu:</b> {c1.get('trend_observation', '')}<br/>"
+                    f"• <b>Chỉ đạo điều hành:</b> {c1.get('actionable_directive', '')}",
+                    callout_style
+                )
+            ]],
+            colWidths=[530]
+        )
+        c1_box.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAF6FD")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#BEB6F2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(c1_box)
+
+    elements.append(PageBreak())
+
+    # =========================================================================
+    # TRANG 2: BIỂU ĐỒ 2 (DONUT) + BIỂU ĐỒ 3 (TIME SERIES)
+    # =========================================================================
+    elements.append(Paragraph("<b>II. PHÂN TÍCH CƠ CẤU DANH MỤC & XU HƯỚNG CHUỖI THỜI GIAN</b>", h2_style))
+    elements.append(Spacer(1, 6))
+
+    c2 = next((c for c in charts if c.get("id") == "chart_2"), None)
+    if c2 and "image_base64" in c2:
+        try:
+            raw_b64 = c2["image_base64"].split(",", 1)[1] if "," in c2["image_base64"] else c2["image_base64"]
+            img_data = base64.b64decode(raw_b64)
+            img_buf = io.BytesIO(img_data)
+            elements.append(Paragraph(f"<b>2. {c2.get('title', 'Cơ Cấu Tỷ Trọng Danh Mục')}</b>", get_style("H3", size=9.5, leading=12, color=colors.HexColor("#1E1B2E"), bold=True)))
+            elements.append(Image(img_buf, width=530, height=210))
+            elements.append(Spacer(1, 4))
+            c2_box = Table([[Paragraph(f"• <b>Nhận xét:</b> {c2.get('trend_observation', '')}", small_style)]], colWidths=[530])
+            c2_box.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAF8FC")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#ECD8F2")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(c2_box)
+            elements.append(Spacer(1, 10))
+        except Exception as e:
+            logger.warning(f"Lỗi nhúng biểu đồ 2 vào PDF: {e}")
+
+    c3 = next((c for c in charts if c.get("id") == "chart_3"), None)
+    if c3 and "image_base64" in c3:
+        try:
+            raw_b64 = c3["image_base64"].split(",", 1)[1] if "," in c3["image_base64"] else c3["image_base64"]
+            img_data = base64.b64decode(raw_b64)
+            img_buf = io.BytesIO(img_data)
+            elements.append(Paragraph(f"<b>3. {c3.get('title', 'Xu Hướng Chuỗi Thời Gian')}</b>", get_style("H3", size=9.5, leading=12, color=colors.HexColor("#1E1B2E"), bold=True)))
+            elements.append(Image(img_buf, width=530, height=210))
+            elements.append(Spacer(1, 4))
+            c3_box = Table([[Paragraph(f"• <b>Chỉ đạo:</b> {c3.get('actionable_directive', '')}", small_style)]], colWidths=[530])
+            c3_box.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAF8FC")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#ECD8F2")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(c3_box)
+        except Exception as e:
+            logger.warning(f"Lỗi nhúng biểu đồ 3 vào PDF: {e}")
+
+    elements.append(PageBreak())
+
+    # =========================================================================
+    # TRANG 3: BIỂU ĐỒ 4 (MA TRẬN RỦI RO) + 4 BIỆN PHÁP XỬ LÝ TRỌNG YẾU
+    # =========================================================================
+    elements.append(Paragraph("<b>III. MA TRẬN ĐÁNH GIÁ RỦI RO & ĐỀ XUẤT XỬ LÝ TRỌNG YẾU</b>", h2_style))
+    elements.append(Spacer(1, 6))
+
+    c4 = next((c for c in charts if c.get("id") == "chart_4"), None)
+    if c4 and "image_base64" in c4:
+        try:
+            raw_b64 = c4["image_base64"].split(",", 1)[1] if "," in c4["image_base64"] else c4["image_base64"]
+            img_data = base64.b64decode(raw_b64)
+            img_buf = io.BytesIO(img_data)
+            elements.append(Image(img_buf, width=530, height=215))
+            elements.append(Spacer(1, 4))
+            c4_box = Table([[Paragraph(f"• <b>Phán quyết rủi ro:</b> {c4.get('trend_observation', '')}", small_style)]], colWidths=[530])
+            c4_box.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FDEEED")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#FCA5A5")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(c4_box)
+            elements.append(Spacer(1, 10))
+        except Exception as e:
+            logger.warning(f"Lỗi nhúng biểu đồ 4 vào PDF: {e}")
+
+    # 4 Biện pháp xử lý trọng yếu
+    actions = step5_data.get("corrective_actions", [])
+    if actions:
+        elements.append(Paragraph("<b>4 BIỆN PHÁP HÀNH ĐỘNG CẤP BÁCH BAN GIÁM ĐỐC:</b>", get_style("H3", size=9.5, leading=12, color=colors.HexColor("#4D2678"), bold=True)))
+        elements.append(Spacer(1, 4))
+        action_rows = []
+        for a in actions[:4]:
+            t = a.get("title", "")
+            s = a.get("summary", "")
+            dets = "<br/>".join([f"  - {d}" for d in a.get("details", [])[:2]])
+            action_rows.append([
+                Paragraph(f"<b><font color='#8F60BF'>{t}</font></b><br/>{s}<br/>{dets}", body_style)
+            ])
+        t_actions = Table(action_rows, colWidths=[530])
+        t_actions.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAF8FC")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#ECD8F2")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#ECD8F2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(t_actions)
+
+    elements.append(PageBreak())
+
+    # =========================================================================
+    # TRANG 4: BẢNG SỔ CÁI P&L + LỘ TRÌNH 30-60-90 + CHỮ KÝ ĐIỆN TỬ HITL-2
+    # =========================================================================
+    elements.append(Paragraph("<b>IV. SỔ CÁI QUẢN TRỊ P&L, LỘ TRÌNH & PHÊ DUYỆT ĐIỀU HÀNH</b>", h2_style))
+    elements.append(Spacer(1, 6))
+
+    # Bảng P&L
+    f_tbl = step5_data.get("financial_table", {})
+    if f_tbl and "columns" in f_tbl and "rows" in f_tbl:
+        tbl_headers = [Paragraph(f"<b>{c}</b>", get_style("TH", size=7.5, leading=9, color=colors.HexColor("#4D2678"), bold=True)) for c in f_tbl["columns"]]
+        tbl_data = [tbl_headers]
+        for r in f_tbl["rows"][:8]:
+            r_name = Paragraph(f"<b>{r.get('name', '')}</b>" if r.get("is_highlight") else r.get("name", ""), small_style)
+            r_vals = [Paragraph(str(v), small_style) for v in r.get("values", [])]
+            tbl_data.append([r_name] + r_vals)
+
+        col_w = [140] + [int(390 / max(1, len(f_tbl["columns"]) - 1))] * (len(f_tbl["columns"]) - 1)
+        pnl_tbl = Table(tbl_data, colWidths=col_w)
+        pnl_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#FAF6FD")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#BEB6F2")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#ECD8F2")),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        elements.append(pnl_tbl)
+        elements.append(Spacer(1, 10))
+
+    # Lộ trình 30-60-90 ngày
+    elements.append(Paragraph("<b>LỘ TRÌNH TRIỂN KHAI 30 - 60 - 90 NGÀY:</b>", get_style("H3", size=9, leading=11, color=colors.HexColor("#8F60BF"), bold=True)))
+    roadmap = step5_data.get("roadmap_30_60_90", {})
+    r_text = f"""
+    • <b>Giai đoạn 1 (1–30 Ngày):</b> {roadmap.get('days_1_30', {}).get('title', '')} — {roadmap.get('days_1_30', {}).get('description', '')}<br/>
+    • <b>Giai đoạn 2 (31–60 Ngày):</b> {roadmap.get('days_31_60', {}).get('title', '')} — {roadmap.get('days_31_60', {}).get('description', '')}<br/>
+    • <b>Giai đoạn 3 (61–90 Ngày):</b> {roadmap.get('days_61_90', {}).get('title', '')} — {roadmap.get('days_61_90', {}).get('description', '')}
+    """
+    elements.append(Paragraph(r_text, small_style))
+    elements.append(Spacer(1, 15))
+
+    # Khối chữ ký số
+    sig_data = [
+        [
+            Paragraph("<b>ĐẠI DIỆN ĐỘI NGŨ KIỂM TOÁN DỮ LIỆU</b><br/><i>(Lead Data Steward &amp; Lead AI Auditor)</i><br/><br/><br/><b>ĐÃ KÝ ĐIỆN TỬ VERIFIED</b>", subtitle_style),
+            Paragraph("<b>BAN GIÁM ĐỐC &amp; HỘI ĐỒNG QUẢN TRỊ</b><br/><i>(Tổng Giám Đốc CEO / Giám Đốc Tài Chính CFO)</i><br/><br/><br/><b>ĐÃ PHÊ DUYỆT &amp; BAN HÀNH QUY CHẾ</b>", subtitle_style),
+        ]
+    ]
+    t_sig = Table(sig_data, colWidths=[265, 265])
+    t_sig.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.5, colors.HexColor("#ECD8F2")),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(t_sig)
+
+    doc.build(elements)
+    return buffer.getvalue()
+

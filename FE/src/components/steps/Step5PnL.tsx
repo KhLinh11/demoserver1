@@ -12,6 +12,7 @@ interface Step5PnLProps {
   activeDimension?: string;
   onDimensionChange?: (dim: string) => void;
   onDownloadPdf: () => void;
+  onDownloadServerPdf?: () => void;
   onOpenExecutiveModal: () => void;
   onApproveHitl2: () => void;
   step5Data?: any;
@@ -26,6 +27,7 @@ export function Step5PnL({
   activeDimension = "Kênh bán",
   onDimensionChange,
   onDownloadPdf,
+  onDownloadServerPdf,
   onOpenExecutiveModal,
   onApproveHitl2,
   step5Data,
@@ -147,12 +149,23 @@ export function Step5PnL({
             <i className={`fa-solid fa-rotate text-[#079DD9] ${isRefreshingStep5 ? "fa-spin" : ""}`} />
             <span>AI Phân Tích Lại Bước 5</span>
           </button>
+          {onDownloadServerPdf && (
+            <button
+              onClick={onDownloadServerPdf}
+              className="px-3.5 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+              title="Tải tệp PDF chuẩn in A4 vector sắc nét từ máy chủ, nhúng đủ 4 biểu đồ và bảng P&L không lỗi trang"
+            >
+              <i className="fa-solid fa-file-pdf text-[#99D9F2]" />
+              <span>Tải PDF Chuẩn In</span>
+            </button>
+          )}
           <button
             onClick={onDownloadPdf}
-            className="px-3.5 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF8FC] border border-[#ECD8F2] text-[#5C5570] hover:text-[#8F60BF] text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+            title="Xuất toàn trang web hiện tại thành tệp PDF"
           >
-            <i className="fa-solid fa-file-pdf" />
-            <span>Tải Báo Cáo PDF</span>
+            <i className="fa-solid fa-download" />
+            <span>Xuất Toàn Trang</span>
           </button>
         </div>
       </div>
@@ -201,7 +214,7 @@ export function Step5PnL({
       {dynamicCharts && dynamicCharts.length > 0 ? (
         <div className="space-y-6">
           {dynamicCharts.map((c: any) => (
-            <div key={c.id} className="p-6 rounded-2xl bg-white border border-[#EFE8F6] shadow-sm space-y-4">
+            <div key={c.id} style={{ pageBreakInside: "avoid", breakInside: "avoid" }} className="p-6 rounded-2xl bg-white border border-[#EFE8F6] shadow-sm space-y-4">
               <div className="flex justify-between items-center pb-2 border-b border-[#EFE8F6]">
                 <h4 className="text-sm sm:text-base font-bold text-[#1E1B2E] flex items-center space-x-2">
                   <i className="fa-solid fa-chart-simple text-[#8F60BF]" />
@@ -346,7 +359,7 @@ export function Step5PnL({
 
       {/* LỘ TRÌNH 30 - 60 - 90 NGÀY (ROADMAP) */}
       {roadmap && (
-        <div className="p-6 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-4">
+        <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }} className="p-6 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-[#ECD8F2]">
             <h4 className="text-sm sm:text-base font-bold text-[#1E1B2E] uppercase">Lộ Trình Hành Động Dành Cho Ban Giám Đốc (30–60–90 Ngày)</h4>
             <span className="text-xs font-mono font-bold text-[#8F60BF]">ACTION PLAN</span>
@@ -369,7 +382,7 @@ export function Step5PnL({
 
       {/* BẢNG P&L / BÁO CÁO SỔ CÁI QUẢN TRỊ ĐỘNG */}
       {financialTable ? (
-        <div className="p-6 rounded-2xl bg-white border border-[#EFE8F6] shadow-sm space-y-4">
+        <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }} className="p-6 rounded-2xl bg-white border border-[#EFE8F6] shadow-sm space-y-4">
           <div className="flex justify-between items-center pb-2 border-b border-[#EFE8F6]">
             <h3 className="text-sm sm:text-base font-bold text-[#1E1B2E] uppercase">{financialTable.title}</h3>
             <span className="text-xs text-[#5C5570] font-mono">{financialTable.subtitle || "100% Cân bằng số học"}</span>
@@ -412,7 +425,7 @@ export function Step5PnL({
         </div>
       ) : (
         /* Fallback 12-line P&L */
-        <div className="p-6 rounded-2xl bg-white border border-[#ECD8F2] shadow-sm space-y-4">
+        <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }} className="p-6 rounded-2xl bg-white border border-[#ECD8F2] shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#ECD8F2] gap-2">
             <div>
               <h3 className="font-extrabold text-base text-[#1E1B2E]">Báo Cáo P&amp;L 12 Dòng Chuẩn Kế Toán Quản Trị</h3>
@@ -447,7 +460,7 @@ export function Step5PnL({
       )}
 
       {/* KÝ DUYỆT NGÂN SÁCH & QUYẾT ĐỊNH ĐIỀU HÀNH (HITL-2) */}
-      <div className="p-6 sm:p-8 rounded-2xl bg-white border border-[#EFE8F6] shadow-sm space-y-5">
+      <div style={{ pageBreakInside: "avoid", breakInside: "avoid" }} className="p-6 sm:p-8 rounded-2xl bg-white border border-[#EFE8F6] shadow-sm space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-[#EFE8F6]">
           <div>
             <h4 className="font-extrabold text-base sm:text-lg text-[#1E1B2E]">Ký Duyệt Ngân Sách &amp; Quyết Định Điều Hành</h4>
