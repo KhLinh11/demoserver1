@@ -18,6 +18,7 @@ interface Step5PnLProps {
   step5Data?: any;
   onRefreshStep5?: () => void;
   isRefreshingStep5?: boolean;
+  onExportCsv?: () => void;
 }
 
 export function Step5PnL({
@@ -33,6 +34,7 @@ export function Step5PnL({
   step5Data,
   onRefreshStep5,
   isRefreshingStep5 = false,
+  onExportCsv,
 }: Step5PnLProps) {
   const chartWaterfallRef = useRef<HTMLCanvasElement>(null);
   const chartRankRef = useRef<HTMLCanvasElement>(null);
@@ -167,6 +169,16 @@ export function Step5PnL({
             <i className="fa-solid fa-download" />
             <span>Xuất Toàn Trang</span>
           </button>
+          {onExportCsv && (
+            <button
+              onClick={onExportCsv}
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF8FC] border border-[#ECD8F2] text-[#5C5570] hover:text-[#079DD9] text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+              title="Xuất dữ liệu sổ cái kiểm toán thành tệp CSV"
+            >
+              <i className="fa-solid fa-file-excel text-[#079DD9]" />
+              <span>Xuất CSV</span>
+            </button>
+          )}
         </div>
       </div>
 

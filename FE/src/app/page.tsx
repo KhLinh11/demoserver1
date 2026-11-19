@@ -13,13 +13,11 @@ import {
   checkBackendHealth,
   createRun,
   downloadReportCsv,
-  downloadReportPdf,
 } from "@/lib/api/client";
 
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { FloatingMascot } from "@/components/assistant/FloatingMascot";
 import { HeroHeader } from "@/components/hero/HeroHeader";
-import { WorkflowNavigation } from "@/components/workflow/WorkflowNavigation";
 import { Step1Upload } from "@/components/steps/Step1Upload";
 import { Step2Cleansing } from "@/components/steps/Step2Cleansing";
 import { Step3Diagnosis } from "@/components/steps/Step3Diagnosis";
@@ -29,10 +27,19 @@ import { ExecutiveReportModal } from "@/components/modals/ExecutiveReportModal";
 import { FullDatasetModal } from "@/components/modals/FullDatasetModal";
 import { AgentDrawer } from "@/components/copilot/AgentDrawer";
 
+const stepBadges: Record<number, string> = {
+  1: "Bước 1: Tích hợp nguồn",
+  2: "Bước 2: Chuẩn hoá dữ liệu",
+  3: "Bước 3: Phân tích dữ liệu",
+  4: "Bước 4: Nguyên nhân & Đề xuất",
+  5: "Bước 5: Tổng kết & Báo cáo",
+};
+
 export default function Home() {
+  const [activeView, setActiveView] = useState<"hero" | "workflow">("workflow");
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Business profile
   const [companyName, setCompanyName] = useState<string>("Công ty Cổ phần Gia dụng Gia Hòa");
@@ -42,7 +49,7 @@ export default function Home() {
 
   // Raw file & CSV Text State
   const [rawCsvText, setRawCsvText] = useState<string>("");
-  const [rawFile, setRawFile] = useState<File | null>(null);
+  const [, setRawFile] = useState<File | null>(null);
   const [currentFileName, setCurrentFileName] = useState<string>("sample_data.csv");
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
 
@@ -151,10 +158,11 @@ export default function Home() {
     });
 
     try {
-      const raw = localStorage.getItem("vitara_fe_state");
+      const raw = localStorage.getItem("vitara_app_state") || localStorage.getItem("vitara_fe_state");
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved) {
+          if (saved.activeView) setActiveView(saved.activeView);
           if (saved.companyName) setCompanyName(saved.companyName);
           if (saved.painpoints) setPainpoints(saved.painpoints);
           if (saved.attributionModel) setAttributionModel(saved.attributionModel);
@@ -162,30 +170,46 @@ export default function Home() {
           if (saved.activeDimension) setActiveDimension(saved.activeDimension);
           if (saved.currentStep) setCurrentStep(saved.currentStep);
           if (saved.currentRunId) setCurrentRunId(saved.currentRunId);
-          if (saved.filename) setCurrentFileName(saved.filename);
-          if (saved.cleansingPlanData) setCleansingPlanData(saved.cleansingPlanData);
-          if (saved.diagnosisData) setDiagnosisData(saved.diagnosisData);
-          if (saved.step4Data) setStep4Data(saved.step4Data);
-          if (saved.step5Data) setStep5Data(saved.step5Data);
-          if (saved.hitl1Approved) setHitl1Approved(saved.hitl1Approved);
-          if (saved.rawCsvText) {
-            applyCsvContent(saved.rawCsvText, saved.filename || "sample_data.csv", undefined, saved.activeDimension);
-            return;
+          if (saved.fileName || saved.filename) setCurrentFileName(saved.fileName || saved.filename);
+          if (saved.cleansingPlanData || saved.currentCleansingPlanData) {
+            setCleansingPlanData(saved.cleansingPlanData || saved.currentCleansingPlanData);
           }
-          if (saved.cleansingPlanData) {
+          if (saved.diagnosisData || saved.currentDiagnosisData) {
+            setDiagnosisData(saved.diagnosisData || saved.currentDiagnosisData);
+          }
+          if (saved.step4Data || saved.currentStep4Data) {
+            setStep4Data(saved.step4Data || saved.currentStep4Data);
+          }
+          if (saved.step5Data || saved.currentStep5Data) {
+            setStep5Data(saved.step5Data || saved.currentStep5Data);
+          }
+          if (saved.hitl1Approved || saved.isCleansingApproved) {
+            setHitl1Approved(saved.hitl1Approved || saved.isCleansingApproved);
+          }
+          const csvText = saved.rawCsvText || saved.rawCsvContent;
+          if (csvText) {
+            applyCsvContent(csvText, saved.fileName || saved.filename || "sample_data.csv", undefined, saved.activeDimension);
             return;
           }
         }
       }
-    } catch {
-      // Ignored
+    } catch (e) {
+      console.warn("Failed to load saved state", e);
     }
 
-    // Auto-load default sample on mount if no saved state
-    loadSampleData("sample_data.csv");
+    // Default load sample data
+    fetch("/api/sample-data")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch sample data");
+        return res.text();
+      })
+      .then((csvText) => {
+        applyCsvContent(csvText, "sample_data.csv");
+      })
+      .catch(() => {});
   }, []);
 
-  // Auto-fetch diagnosis and cleansing data when arriving at Step 3 or Step 4 if not loaded
+  // Fetch AI analyses when navigating to step
   useEffect(() => {
     if (currentStep === 3) {
       if (!diagnosisData) fetchDiagnosis();
@@ -210,13 +234,13 @@ export default function Home() {
     const timer = setTimeout(() => {
       try {
         const stateToSave = {
+          activeView,
           companyName,
           painpoints,
           attributionModel,
           returnFactor,
           activeDimension,
           currentStep,
-          currentRunId,
           rawCsvText: rawCsvText ? rawCsvText.slice(0, 300000) : "",
           filename: currentFileName || "sample_data.csv",
           cleansingPlanData,
@@ -225,20 +249,21 @@ export default function Home() {
           step5Data,
           hitl1Approved,
         };
+        localStorage.setItem("vitara_app_state", JSON.stringify(stateToSave));
         localStorage.setItem("vitara_fe_state", JSON.stringify(stateToSave));
       } catch (err) {
-        console.warn("Failed to persist fe state", err);
+        console.warn("Failed to persist state", err);
       }
     }, 300);
     return () => clearTimeout(timer);
   }, [
+    activeView,
     companyName,
     painpoints,
     attributionModel,
     returnFactor,
     activeDimension,
     currentStep,
-    currentRunId,
     rawCsvText,
     currentFileName,
     cleansingPlanData,
@@ -284,14 +309,13 @@ export default function Home() {
 
       if (fileObj) {
         setRawFile(fileObj);
-        // Tự động phân tích Pandas và sinh AI Cleansing Plan qua Gemini
         const fd = new FormData();
         fd.append("file", fileObj);
         fetch("/api/cleansing/analyze", {
           method: "POST",
           body: fd,
         })
-          .then((res) => res.json())
+          .then((r) => r.json())
           .then((data) => {
             if (data.status === "success") {
               setCleansingPlanData(data);
@@ -308,7 +332,6 @@ export default function Home() {
         fetchDiagnosis();
       }
 
-      // If backend is online, sync in background
       if (backendOnline) {
         const blob = fileObj || new Blob([text], { type: "text/csv" });
         createRun(blob, filename, companyName, painpoints)
@@ -324,7 +347,6 @@ export default function Home() {
     }
   };
 
-  // Recompute when user changes the active dimension
   const handleDimensionChange = (dimension: string) => {
     setActiveDimension(dimension);
     if (rawCsvText) {
@@ -335,7 +357,6 @@ export default function Home() {
     }
   };
 
-  // Recompute when attribution model changes
   const handleModelChange = (model: AttributionModel) => {
     setAttributionModel(model);
     if (rawCsvText) {
@@ -345,7 +366,6 @@ export default function Home() {
     }
   };
 
-  // Recompute when return factor changes
   const handleReturnFactorChange = (factor: number) => {
     setReturnFactor(factor);
     if (rawCsvText) {
@@ -355,7 +375,6 @@ export default function Home() {
     }
   };
 
-  // Tải trực tiếp PDF chuẩn in A4 ReportLab vector từ máy chủ (chuẩn xác 100%, không bao giờ lỗi trang trắng hay xén chữ)
   const handleDownloadServerPdf = () => {
     const safeCompany = companyName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, "_");
     const today = new Date().toISOString().slice(0, 10);
@@ -369,36 +388,24 @@ export default function Home() {
     document.body.removeChild(a);
   };
 
-  // PDF Export toàn trang Bước 5
   const handleDownloadPdf = async () => {
     try {
-      const targetElement = document.getElementById("step5-export-container") || document.getElementById("step-panel-5");
-      if (!targetElement) {
-        setIsExecutiveModalOpen(true);
-        return;
-      }
-
-      // Đảm bảo html2pdf có sẵn
       const html2pdf = (window as any).html2pdf;
       if (!html2pdf) {
-        window.print();
+        handleDownloadServerPdf();
         return;
       }
 
-      // Tạm ẩn các nút bấm không cần in
-      const noPrintEls = targetElement.querySelectorAll(".no-print, button, input[type='range']");
-      const originalDisplays: { el: HTMLElement; display: string }[] = [];
-      noPrintEls.forEach((el) => {
-        const htmlEl = el as HTMLElement;
-        originalDisplays.push({ el: htmlEl, display: htmlEl.style.display });
-        htmlEl.style.display = "none";
-      });
+      const targetElement = document.getElementById("step-panel-5");
+      if (!targetElement) {
+        handleDownloadServerPdf();
+        return;
+      }
 
       const safeCompany = companyName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, "_");
       const today = new Date().toISOString().slice(0, 10);
       const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_${safeCompany}_${today}.pdf`;
 
-      // Cấu hình tối ưu loại bỏ trang trắng và chống xén lề trái
       const opt = {
         margin: [10, 10, 10, 10],
         filename,
@@ -413,34 +420,23 @@ export default function Home() {
           scrollY: 0,
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] }, // Loại bỏ "avoid-all" để không sinh trang trắng
+        pagebreak: { mode: ["css", "legacy"] },
       };
 
       await html2pdf().set(opt).from(targetElement).save();
-
-      // Phục hồi
-      originalDisplays.forEach(({ el, display }) => {
-        el.style.display = display;
-      });
-
-      alert(
-        `✅ Xuất Báo Cáo PDF Toàn Trang Thành Công!\n\nToàn bộ trang Bước 5 (bao gồm 4 biểu đồ phân tích Kênh bán & Thời gian, bảng P&L và chữ ký kiểm toán) đã được tải xuống:\n${filename}`,
-      );
+      alert(`✅ Xuất Báo Cáo PDF Toàn Trang Thành Công!\n\nĐã tải xuống: ${filename}`);
     } catch (err: any) {
       console.error("Lỗi xuất PDF Bước 5:", err);
       handleDownloadServerPdf();
     }
   };
 
-  // CSV Export
-  const handleDownloadCsv = async () => {
+  const handleExportCSV = async () => {
     if (backendOnline && currentRunId) {
       try {
-        await downloadReportCsv(currentRunId, "So_Cai_Kiem_Toan.csv");
+        await downloadReportCsv(currentRunId);
         return;
-      } catch {
-        // Fallback
-      }
+      } catch {}
     }
     const header = `STT,Mã Đơn,Ngày Đơn,${activeDimension},Doanh Thu Thô,Voucher,Giá Vốn,Hoàn Trả,Trạng Thái\n`;
     const rows = orders
@@ -458,7 +454,6 @@ export default function Home() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
-  // Session Reset: Xóa toàn bộ dữ liệu luồng hiện tại và trở về Bước 1
   const handleResetSession = () => {
     if (backendOnline) {
       fetch("/api/session/reset", { method: "POST" }).catch(() => {});
@@ -477,217 +472,202 @@ export default function Home() {
     setStep4Data(null);
     setStep5Data(null);
     setCurrentStep(1);
-    document.getElementById("workflow-section")?.scrollIntoView({ behavior: "smooth" });
+    alert("✅ Đã làm mới phiên và xóa toàn bộ dữ liệu bộ nhớ đệm thành công!");
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8F5] text-[#1E2E2A] flex flex-col justify-between selection:bg-[#34655F] selection:text-white">
-      {/* 3D Hero Section */}
-      <HeroHeader
-        backendOnline={backendOnline}
-        onStartAudit={() => {
-          document.getElementById("workflow-section")?.scrollIntoView({ behavior: "smooth" });
-        }}
-        onOpenCopilot={() => setIsCopilotOpen(true)}
-      />
-
-      {/* Main Container with Sidebar + Main Panels */}
-      <div id="workflow-section" className="max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex gap-6 items-start">
-        {/* Left Floating Sidebar Navigation (matching the uploaded image) */}
-        <AppSidebar
-          currentStep={currentStep}
-          onSelectStep={(step) => {
-            setCurrentStep(step);
-            setMobileMenuOpen(false);
-          }}
+    <div className="min-h-screen bg-[#FAF8FC] text-[#1E1B2E] flex flex-col font-sans">
+      {/* 1. HERO VIEW */}
+      {activeView === "hero" ? (
+        <HeroHeader
+          backendOnline={backendOnline}
+          onStartAudit={() => setActiveView("workflow")}
           onOpenCopilot={() => setIsCopilotOpen(true)}
-          onResetSession={handleResetSession}
-          companyName={companyName}
-          isBackendOnline={backendOnline}
         />
+      ) : (
+        /* 2. WORKFLOW VIEW */
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Top Bar matching index.html */}
+          <header className="px-6 py-3.5 bg-[#FAF6FD] border-b border-[#ECD8F2] flex items-center justify-between z-30 sticky top-0 backdrop-blur-md">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#ECD8F2]/60 border border-[#BEB6F2] text-[#8F60BF] text-xs font-bold transition flex items-center space-x-2 shadow-2xs cursor-pointer"
+                title="Bật / Tắt danh mục các bước"
+              >
+                <i className="fa-solid fa-bars text-sm text-[#079DD9]" />
+                <span>Danh mục làm việc</span>
+              </button>
 
-        {/* Main Content Area */}
-        <main className="flex-1 min-w-0 space-y-6">
-          {/* Top Mobile Bar with Menu toggle */}
-          <div className="lg:hidden flex items-center justify-between p-3.5 rounded-2xl bg-[#F2F5F3] border border-[#D5DFD9]">
+              <span className="text-xs text-[#5C5570] hidden sm:inline-block">|</span>
+
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-[#079DD9] animate-pulse" />
+                <span className="text-xs font-extrabold text-[#1E1B2E]">
+                  {stepBadges[currentStep] || `Bước ${currentStep}`}
+                </span>
+              </div>
+            </div>
+
             <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#34655F]" />
-              <span className="font-black text-xs text-[#1E2E2A]">Danh mục &amp; Các bước kiểm toán</span>
+              <button
+                onClick={() => setIsCopilotOpen(!isCopilotOpen)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold text-[#8F60BF] hover:text-white hover:bg-[#8F60BF] bg-white border border-[#BEB6F2] transition flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                title="Bật / Tắt Trợ Lý AI Copilot"
+              >
+                <i className="fa-solid fa-robot text-[#079DD9]" />
+                <span>Trợ Lý AI</span>
+              </button>
+              <button
+                onClick={handleResetSession}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#5C5570] hover:text-[#D93848] hover:bg-white transition cursor-pointer"
+                title="Xóa dữ liệu lưu và làm mới toàn bộ"
+              >
+                <i className="fa-solid fa-rotate-left mr-1 text-[#D93848]" /> Làm Mới Phiên
+              </button>
+              <button
+                onClick={() => setActiveView("hero")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#5C5570] hover:text-[#8F60BF] hover:bg-white transition cursor-pointer"
+              >
+                <i className="fa-solid fa-arrow-left mr-1 text-[#079DD9]" /> Về Trang Bìa
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="px-3 py-1.5 rounded-xl bg-white border border-[#D5DFD9] text-xs font-bold text-[#34655F]"
-            >
-              {mobileMenuOpen ? "Đóng Menu" : "Mở Menu"}
-            </button>
-          </div>
+          </header>
 
-          {/* Mobile Menu Dropdown */}
-          {mobileMenuOpen && (
-            <div className="lg:hidden p-4 rounded-3xl bg-white border border-[#D5DFD9] shadow-md space-y-2">
-              {[
-                { s: 1, label: "Bước 1: Tải lên tệp dữ liệu bán hàng" },
-                { s: 2, label: "Bước 2: Chuẩn hoá & Phê duyệt HITL-1" },
-                { s: 3, label: "Bước 3: Chẩn đoán rủi ro dòng tiền" },
-                { s: 4, label: "Bước 4: Mô phỏng What-If & Đảo thứ hạng" },
-                { s: 5, label: "Bước 5: Báo cáo P&L 12 dòng & Biểu đồ" },
-              ].map((m) => (
-                <button
-                  key={m.s}
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(m.s);
-                    setMobileMenuOpen(false);
+          {/* Workflow Layout: Sidebar + Main Content Panel */}
+          <div className="flex-1 flex overflow-hidden relative">
+            {/* Collapsible Steps Sidebar */}
+            <AppSidebar
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+              currentStep={currentStep}
+              onSelectStep={(step) => setCurrentStep(step)}
+              onOpenCopilot={() => setIsCopilotOpen(true)}
+            />
+
+            {/* Main Content Area */}
+            <main className="flex-1 min-w-0 overflow-y-auto p-6 sm:p-8 space-y-6 bg-white transition-all duration-300">
+              {currentStep === 1 && (
+                <Step1Upload
+                  companyName={companyName}
+                  setCompanyName={setCompanyName}
+                  painpoints={painpoints}
+                  setPainpoints={setPainpoints}
+                  onFileLoaded={(content, filename, file) => {
+                    const res = applyCsvContent(content, filename, file);
+                    if (res.success) {
+                      setCurrentStep(2);
+                    }
+                    return res;
                   }}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
-                    currentStep === m.s ? "bg-[#34655F] text-white" : "text-[#4A5D57] hover:bg-[#F2F5F3]"
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          )}
+                  onQuickLoadSample={(filename) => {
+                    loadSampleData(filename);
+                    setCurrentStep(2);
+                  }}
+                  isLoading={isLoading}
+                  totalLoadedRows={orders.length}
+                  isSampled={isSampled}
+                  totalRawRows={totalRawRows}
+                />
+              )}
 
-          {/* Workflow Navigation Tabs */}
-          <WorkflowNavigation
-            currentStep={currentStep}
-            onSelectStep={(step) => setCurrentStep(step)}
-            hasData={orders.length > 0}
-            hitl1Approved={hitl1Approved}
-          />
+              {currentStep === 2 && (
+                <Step2Cleansing
+                  stats={stats}
+                  orders={orders}
+                  hitl1Approved={hitl1Approved}
+                  onApproveHitl1={() => setHitl1Approved(true)}
+                  onOpenFullDataset={() => setIsFullDatasetModalOpen(true)}
+                  onProceedToStep3={() => setCurrentStep(3)}
+                  cleansingPlanData={cleansingPlanData}
+                />
+              )}
 
-          {/* Step Panels */}
-          {currentStep === 1 && (
-            <Step1Upload
-              companyName={companyName}
-              setCompanyName={setCompanyName}
-              painpoints={painpoints}
-              setPainpoints={setPainpoints}
-              onFileLoaded={(content, filename, file) => {
-                const res = applyCsvContent(content, filename, file);
-                if (res.success) {
-                  setCurrentStep(2);
-                }
-                return res;
-              }}
-              onQuickLoadSample={(filename) => {
-                loadSampleData(filename);
-                setCurrentStep(2);
-              }}
-              isLoading={isLoading}
-              totalLoadedRows={orders.length}
-              isSampled={isSampled}
-              totalRawRows={totalRawRows}
-            />
-          )}
+              {currentStep === 3 && (
+                <Step3Diagnosis
+                  channels={channels}
+                  availableDimensions={availableDimensions}
+                  activeDimension={activeDimension}
+                  onDimensionChange={handleDimensionChange}
+                  onProceedToStep4={() => setCurrentStep(4)}
+                  diagnosisData={diagnosisData}
+                  onRefreshDiagnosis={() => fetchDiagnosis()}
+                  isRefreshing={isRefreshingDiagnosis}
+                  cleansingPlanData={cleansingPlanData}
+                />
+              )}
 
-          {currentStep === 2 && (
-            <Step2Cleansing
-              stats={stats}
-              orders={orders}
-              hitl1Approved={hitl1Approved}
-              onApproveHitl1={() => setHitl1Approved(true)}
-              onOpenFullDataset={() => setIsFullDatasetModalOpen(true)}
-              onProceedToStep3={() => setCurrentStep(3)}
-              cleansingPlanData={cleansingPlanData}
-            />
-          )}
+              {currentStep === 4 && (
+                <Step4Simulation
+                  channels={channels}
+                  attributionModel={attributionModel}
+                  onModelChange={handleModelChange}
+                  returnFactor={returnFactor}
+                  onReturnFactorChange={handleReturnFactorChange}
+                  availableDimensions={availableDimensions}
+                  activeDimension={activeDimension}
+                  onDimensionChange={handleDimensionChange}
+                  onProceedToStep5={() => setCurrentStep(5)}
+                  step4Data={step4Data}
+                  onRefreshStep4={() => fetchStep4(true)}
+                  isRefreshingStep4={isRefreshingStep4}
+                />
+              )}
 
-          {currentStep === 3 && (
-            <Step3Diagnosis
-              channels={channels}
-              availableDimensions={availableDimensions}
-              activeDimension={activeDimension}
-              onDimensionChange={handleDimensionChange}
-              onProceedToStep4={() => setCurrentStep(4)}
-              diagnosisData={diagnosisData}
-              onRefreshDiagnosis={() => fetchDiagnosis()}
-              isRefreshing={isRefreshingDiagnosis}
-              cleansingPlanData={cleansingPlanData}
-            />
-          )}
-
-          {currentStep === 4 && (
-            <Step4Simulation
-              channels={channels}
-              attributionModel={attributionModel}
-              onModelChange={handleModelChange}
-              returnFactor={returnFactor}
-              onReturnFactorChange={handleReturnFactorChange}
-              availableDimensions={availableDimensions}
-              activeDimension={activeDimension}
-              onDimensionChange={handleDimensionChange}
-              onProceedToStep5={() => setCurrentStep(5)}
-              step4Data={step4Data}
-              onRefreshStep4={() => fetchStep4(true)}
-              isRefreshingStep4={isRefreshingStep4}
-            />
-          )}
-
-          {currentStep === 5 && (
-            <Step5PnL
-              pnl={pnl}
-              channels={channels}
-              availableDimensions={availableDimensions}
-              activeDimension={activeDimension}
-              onDimensionChange={handleDimensionChange}
-              onDownloadPdf={handleDownloadPdf}
-              onDownloadServerPdf={handleDownloadServerPdf}
-              onOpenExecutiveModal={() => setIsExecutiveModalOpen(true)}
-              onApproveHitl2={() => {
-                setHitl2Approved(true);
-                alert(
-                  "✅ Ký Duyệt Thành Công!\n\nBan Giám Đốc đã phê duyệt phương án chốt sổ và điều chuyển ngân sách. Chữ ký số đã được lưu vào sổ cái kiểm toán.",
-                );
-              }}
-              step5Data={step5Data}
-              onRefreshStep5={() => fetchStep5(true)}
-              isRefreshingStep5={isRefreshingStep5}
-            />
-          )}
-        </main>
-      </div>
-
-      {/* Footer */}
-      <footer className="w-full border-t border-[#D5DFD9] bg-white py-6 px-4 text-center text-xs text-[#5C6E68]">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>Vitara Data Platform · Nền Tảng Đối Soát Bán Lẻ &amp; Tối Ưu Lợi Nhuận Đa Chiều</span>
-          <span>Chuẩn giao diện thân thiện Chirplingo &amp; Icon YouTube · Tự động trích mẫu 1.000 dòng</span>
+              {currentStep === 5 && (
+                <div id="step-panel-5">
+                  <Step5PnL
+                    pnl={pnl}
+                    channels={channels}
+                    availableDimensions={availableDimensions}
+                    activeDimension={activeDimension}
+                    onDimensionChange={handleDimensionChange}
+                    onDownloadPdf={handleDownloadPdf}
+                    onDownloadServerPdf={handleDownloadServerPdf}
+                    onOpenExecutiveModal={() => setIsExecutiveModalOpen(true)}
+                    onApproveHitl2={() => setHitl2Approved(true)}
+                    step5Data={step5Data}
+                    onRefreshStep5={() => fetchStep5(true)}
+                    isRefreshingStep5={isRefreshingStep5}
+                    onExportCsv={handleExportCSV}
+                  />
+                </div>
+              )}
+            </main>
+          </div>
         </div>
-      </footer>
+      )}
 
-      {/* Floating Mascot & Expandable Upload Button (bottom-right) */}
-      <FloatingMascot
-        onOpenCopilot={() => setIsCopilotOpen(true)}
-        onGoToStep1={() => {
-          setCurrentStep(1);
-          document.getElementById("workflow-section")?.scrollIntoView({ behavior: "smooth" });
-        }}
+      {/* Floating Mascot in Bottom Right */}
+      {!isCopilotOpen && (
+        <FloatingMascot
+          onOpenCopilot={() => setIsCopilotOpen(true)}
+          onGoToStep1={() => setCurrentStep(1)}
+        />
+      )}
+
+      {/* Slide-out AI Copilot Agent Drawer */}
+      <AgentDrawer
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        companyName={companyName}
       />
 
-      {/* Modals & Copilot Drawer */}
+      {/* Modals */}
+      <FullDatasetModal
+        isOpen={isFullDatasetModalOpen}
+        onClose={() => setIsFullDatasetModalOpen(false)}
+        orders={orders}
+        onDownloadCsv={handleExportCSV}
+      />
+
       <ExecutiveReportModal
         isOpen={isExecutiveModalOpen}
         onClose={() => setIsExecutiveModalOpen(false)}
         companyName={companyName}
         totalRows={orders.length}
         pnl={pnl}
-        onDownloadBackendPdf={handleDownloadPdf}
-      />
-
-      <FullDatasetModal
-        isOpen={isFullDatasetModalOpen}
-        onClose={() => setIsFullDatasetModalOpen(false)}
-        orders={orders}
-        onDownloadCsv={handleDownloadCsv}
-      />
-
-      <AgentDrawer
-        isOpen={isCopilotOpen}
-        onClose={() => setIsCopilotOpen(false)}
-        companyName={companyName}
+        onDownloadBackendPdf={handleDownloadServerPdf}
       />
     </div>
   );

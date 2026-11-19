@@ -100,7 +100,7 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
             <div>
               <div className="flex items-center space-x-1.5">
                 <h3 className="font-black text-sm text-[#1E2E2A]">Trợ Lý Ảo Vitara</h3>
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#34655F] text-white">
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#8F60BF] text-white">
                   AI COPILOT
                 </span>
               </div>
@@ -129,25 +129,25 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
               key={idx}
               className={`p-3.5 rounded-2xl leading-relaxed shadow-2xs ${
                 m.sender === "bot"
-                  ? "bg-white border border-[#D5DFD9] text-[#1E2E2A]"
-                  : "bg-[#34655F] text-white ml-8 font-medium"
+                  ? "bg-white border border-[#ECD8F2] text-[#1E1B2E]"
+                  : "bg-[#8F60BF] text-white ml-8 font-medium"
               }`}
             >
               <div className="whitespace-pre-wrap">{m.text}</div>
               {m.sql && (
-                <div className="mt-2 pt-2 border-t border-slate-100">
-                  <div className="text-[10px] font-mono font-bold text-[#34655F] flex items-center space-x-1">
+                <div className="mt-2 pt-2 border-t border-[#ECD8F2]">
+                  <div className="text-[10px] font-mono font-bold text-[#8F60BF] flex items-center space-x-1">
                     <span>⚡ Truy vấn DuckDB SQL:</span>
                   </div>
-                  <pre className="mt-1 p-2 rounded-lg bg-slate-50 text-[10px] font-mono text-slate-700 overflow-x-auto border border-slate-200">
+                  <pre className="mt-1 p-2 rounded-lg bg-[#FAF8FC] text-[10px] font-mono text-[#8F60BF] overflow-x-auto border border-[#ECD8F2]">
                     {m.sql}
                   </pre>
                 </div>
               )}
               {m.sourceTable && (
-                <div className="mt-1.5 flex items-center space-x-1.5 text-[10px] text-emerald-700 font-semibold">
+                <div className="mt-1.5 flex items-center space-x-1.5 text-[10px] text-[#079DD9] font-semibold">
                   <span>✓ Nguồn: {m.sourceTable}</span>
-                  <span className="text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                  <span className="text-[9px] bg-[#EBF6FC] text-[#079DD9] px-1.5 py-0.5 rounded border border-[#99D9F2]/60">
                     Chính xác 100%
                   </span>
                 </div>
@@ -155,34 +155,34 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
             </div>
           ))}
           {isThinking && (
-            <div className="p-3 bg-white border border-[#D5DFD9] rounded-2xl text-xs text-[#5C6E68] flex items-center space-x-2 animate-pulse">
-              <span className="w-2 h-2 rounded-full bg-[#34655F]" />
+            <div className="p-3 bg-white border border-[#ECD8F2] rounded-2xl text-xs text-[#5C5570] flex items-center space-x-2 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-[#8F60BF]" />
               <span>Đang truy vấn DuckDB &amp; tính toán số liệu đối soát...</span>
             </div>
           )}
         </div>
 
-        {/* Quick Question Chips (YouTube / Studio suggestions) */}
-        <div className="space-y-1.5 pt-2 border-t border-[#D5DFD9]">
-          <span className="text-[10px] font-black uppercase tracking-wider text-[#5C6E68] block">
+        {/* Quick Question Chips */}
+        <div className="space-y-1.5 pt-2 border-t border-[#ECD8F2]">
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#5C5570] block">
             Câu hỏi gợi ý nhanh:
           </span>
           <div className="flex flex-wrap gap-1.5 text-[11px]">
             <button
               onClick={() => handleSend("Tại sao Flash Sale Shopee lại lỗ?")}
-              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#EBF2EE] border border-[#D5DFD9] text-[#34655F] text-left transition font-semibold"
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF6FD] border border-[#ECD8F2] text-[#8F60BF] text-left transition font-semibold cursor-pointer"
             >
               Vì sao Flash Sale lỗ?
             </button>
             <button
               onClick={() => handleSend("Có nên tăng vốn cho Khai Xuân?")}
-              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#EBF2EE] border border-[#D5DFD9] text-[#079DD9] text-left transition font-semibold"
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF6FD] border border-[#ECD8F2] text-[#079DD9] text-left transition font-semibold cursor-pointer"
             >
               Có nên tăng vốn Khai Xuân?
             </button>
             <button
               onClick={() => handleSend("Vì sao phải đối soát chu kỳ 30 ngày hoàn trả?")}
-              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#EBF2EE] border border-[#D5DFD9] text-[#5C6E68] text-left transition font-semibold"
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF6FD] border border-[#ECD8F2] text-[#5C5570] text-left transition font-semibold cursor-pointer"
             >
               Lỗ hổng chu kỳ 30 ngày?
             </button>
@@ -191,20 +191,20 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
       </div>
 
       {/* Input box */}
-      <div className="pt-3 border-t border-[#D5DFD9] flex items-center space-x-2">
+      <div className="pt-3 border-t border-[#ECD8F2] flex items-center space-x-2">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Hỏi trợ lý về P&amp;L hoặc rủi ro thâm hụt..."
-          className="flex-1 px-4 py-2.5 rounded-2xl bg-white border border-[#D5DFD9] focus:border-[#34655F] focus:outline-none text-xs text-[#1E2E2A] placeholder:text-[#9AA8A2]"
+          className="flex-1 px-4 py-2.5 rounded-2xl bg-[#FAF8FC] border border-[#ECD8F2] focus:border-[#8F60BF] focus:outline-none text-xs text-[#1E1B2E] placeholder:text-[#5C5570]/60"
         />
         <button
           onClick={() => handleSend()}
-          className="px-4 py-2.5 rounded-2xl bg-[#34655F] hover:bg-[#2A524D] text-white text-xs font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
+          className="px-4 py-2.5 rounded-2xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
         >
-          <YtBotIcon className="w-3.5 h-3.5 text-[#F8A528]" />
+          <YtBotIcon className="w-3.5 h-3.5 text-[#99D9F2]" />
           <span>Gửi</span>
         </button>
       </div>

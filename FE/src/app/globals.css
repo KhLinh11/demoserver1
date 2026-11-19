@@ -1,36 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #34655F;
+  --color-primary: #8F60BF;
   --color-secondary: #079DD9;
-  --color-accent: #F98B68;
-  --color-bg-soft: #F7F8F5;
-  --color-text-main: #1E2E2A;
-  --color-text-muted: #5C6E68;
-  --color-border-light: #D5DFD9;
+  --color-accent: #BEB6F2;
+  --color-bg-soft: #FAF8FC;
+  --color-text-main: #1E1B2E;
+  --color-text-muted: #5C5570;
+  --color-border-light: #ECD8F2;
 }
 
 body {
-  background-color: #F7F8F5;
-  color: #1E2E2A;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #FAF8FC;
+  color: #1E1B2E;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow-x: hidden;
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D5DFD9;
+  background: #ECD8F2;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #B8CAC2;
+  background: #BEB6F2;
 }
 
 @keyframes bounceGentle {

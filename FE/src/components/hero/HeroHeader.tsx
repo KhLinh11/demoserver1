@@ -8,7 +8,7 @@ interface HeroHeaderProps {
   onOpenCopilot: () => void;
 }
 
-export function HeroHeader({ backendOnline, onOpenCopilot }: HeroHeaderProps) {
+export function HeroHeader({ backendOnline, onStartAudit, onOpenCopilot }: HeroHeaderProps) {
   return (
     <section
       id="view-hero"
@@ -81,9 +81,45 @@ export function HeroHeader({ backendOnline, onOpenCopilot }: HeroHeaderProps) {
           </h1>
 
           {/* Paragraph */}
-          <p className="text-xs sm:text-sm md:text-base text-[#ECD8F2]/90 font-normal leading-relaxed max-w-md">
+          <p className="text-xs sm:text-sm md:text-base text-[#ECD8F2]/90 font-normal leading-relaxed max-w-lg">
             Chấm dứt bẫy doanh thu ảo do tính trùng lặp. Bóc tách đơn hoàn trả trễ chu kỳ 30 ngày, bảo toàn biên lợi nhuận ròng và tái phân bổ ngân sách chuẩn xác.
           </p>
+
+          {/* 2 Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3.5 pt-1">
+            <button
+              onClick={onStartAudit}
+              className="px-7 py-3 rounded-full text-white font-bold text-xs sm:text-sm tracking-wide transition-all transform hover:-translate-y-0.5 shadow-[0_8px_20px_rgba(7,157,217,0.4)] hover:shadow-[0_12px_28px_rgba(7,157,217,0.6)] flex items-center space-x-2.5 bg-gradient-to-r from-[#079DD9] via-[#068ac0] to-[#8F60BF] border border-[#99D9F2]/50 cursor-pointer"
+            >
+              <i className="fa-solid fa-cloud-arrow-up text-sm text-[#99D9F2]" />
+              <span>Tải File Dữ Liệu</span>
+              <i className="fa-solid fa-arrow-right text-xs text-[#99D9F2]" />
+            </button>
+
+            <button
+              onClick={onOpenCopilot}
+              className="px-6 py-3 rounded-full text-white hover:text-[#99D9F2] bg-white/15 hover:bg-white/25 border border-[#ECD8F2]/50 backdrop-blur-md font-bold text-xs sm:text-sm transition flex items-center space-x-2 shadow-xs cursor-pointer hover:border-[#BEB6F2]"
+            >
+              <i className="fa-solid fa-robot text-sm text-[#99D9F2]" />
+              <span>Trợ Lý AI</span>
+            </button>
+          </div>
+
+          {/* 3 Value Cards */}
+          <div className="grid grid-cols-3 gap-2.5 pt-1 max-w-lg">
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-left space-y-0.5 hover:bg-white/15 transition">
+              <div className="text-[10px] font-mono text-[#99D9F2] uppercase font-bold tracking-wider">Mô Hình 3R</div>
+              <div className="text-xs font-bold text-white">Khử Trùng Đơn</div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-left space-y-0.5 hover:bg-white/15 transition">
+              <div className="text-[10px] font-mono text-[#99D9F2] uppercase font-bold tracking-wider">Cửa Sổ 30 Ngày</div>
+              <div className="text-xs font-bold text-white">Chốt Hoàn Trễ</div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-left space-y-0.5 hover:bg-white/15 transition">
+              <div className="text-[10px] font-mono text-[#99D9F2] uppercase font-bold tracking-wider">P&amp;L Quản Trị</div>
+              <div className="text-xs font-bold text-white">Lãi Thật 100%</div>
+            </div>
+          </div>
 
           {/* Support Channels Row */}
           <div className="flex items-center space-x-3 pt-4 sm:pt-5 border-t border-white/15 text-[#ECD8F2]">
