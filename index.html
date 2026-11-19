@@ -340,14 +340,20 @@
 
     window.toggleAgentDrawer = function(forceOpen) {
       var d = document.getElementById('agent-drawer');
+      var backdrop = document.getElementById('agent-drawer-backdrop');
       var mascot = document.getElementById('floating-mascot-container');
       if (!d) return;
 
-      var isClosed = d.classList.contains('translate-x-full');
+      var isClosed = d.classList.contains('translate-x-full') || (d.style.transform && d.style.transform.indexOf('100%') !== -1);
       var shouldOpen = (typeof forceOpen === 'boolean') ? forceOpen : isClosed;
 
       if (shouldOpen) {
         d.classList.remove('translate-x-full');
+        d.classList.add('translate-x-0');
+        d.style.transform = 'translateX(0)';
+        d.style.display = 'flex';
+        d.style.visibility = 'visible';
+        if (backdrop) backdrop.classList.remove('hidden');
         if (window.innerWidth >= 1024) {
           document.body.style.marginRight = '420px';
         }
@@ -356,6 +362,9 @@
         if (box) setTimeout(function() { box.scrollTop = box.scrollHeight; }, 100);
       } else {
         d.classList.add('translate-x-full');
+        d.classList.remove('translate-x-0');
+        d.style.transform = 'translateX(100%)';
+        if (backdrop) backdrop.classList.add('hidden');
         document.body.style.marginRight = '0px';
         if (mascot) mascot.classList.remove('opacity-0', 'pointer-events-none');
       }
@@ -1951,7 +1960,7 @@
         </div>
 
         <div class="pt-3 border-t border-[#ECD8F2] space-y-2">
-          <button onclick="toggleAgentDrawer()" class="w-full py-2 px-3 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center justify-center space-x-2 shadow-xs">
+          <button onclick="window.toggleAgentDrawer(true)" class="w-full py-2 px-3 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center justify-center space-x-2 shadow-xs cursor-pointer">
             <i class="fa-solid fa-robot text-[#99D9F2]"></i>
             <span>Trợ Lý Cố Vấn AI</span>
           </button>
@@ -5099,8 +5108,11 @@
     });
   </script>
 
+  <!-- BACKDROP CHO DRAWER COPILOT -->
+  <div id="agent-drawer-backdrop" onclick="window.toggleAgentDrawer(false)" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 hidden transition-opacity duration-300"></div>
+
   <!-- DRAWER COPILOT FIXED PANEL (TỰ ĐỘNG THU NHỎ NỘI DUNG TOÀN TRANG, KHÔNG CHE KHUẤT DỮ LIỆU) -->
-  <aside id="agent-drawer" class="fixed top-0 right-0 h-screen w-full sm:w-[420px] bg-white border-l border-[#ECD8F2] p-5 flex flex-col justify-between transition-transform duration-300 z-50 translate-x-full shadow-2xl">
+  <aside id="agent-drawer" class="fixed top-0 right-0 h-screen w-full sm:w-[420px] bg-white border-l border-[#ECD8F2] p-5 flex flex-col justify-between transition-transform duration-300 translate-x-full shadow-2xl" style="z-index: 9999;">
     <div class="space-y-3 flex-1 flex flex-col overflow-hidden">
       <div class="flex items-center justify-between pb-3 border-b border-[#ECD8F2]">
         <div class="flex items-center space-x-2.5">

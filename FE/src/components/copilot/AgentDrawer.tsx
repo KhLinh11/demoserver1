@@ -83,7 +83,13 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[440px] bg-[#FAFBF9] shadow-2xl border-l border-[#D5DFD9] p-5 flex flex-col justify-between z-50 animate-slide-in">
+    <>
+      {/* Semi-transparent Backdrop with click-to-close */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
+      />
+      <div className="fixed inset-y-0 right-0 w-full sm:w-[440px] bg-[#FAFBF9] shadow-2xl border-l border-[#D5DFD9] p-5 flex flex-col justify-between z-50 animate-slide-in">
       <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
         {/* Drawer Header with Mascot */}
         <div className="flex items-center justify-between pb-3 border-b border-[#D5DFD9]">
@@ -203,5 +209,6 @@ export function AgentDrawer({ isOpen, onClose, companyName = "Vitara" }: AgentDr
         </button>
       </div>
     </div>
+    </>
   );
 }

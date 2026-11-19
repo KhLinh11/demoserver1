@@ -76,7 +76,7 @@ export function AppSidebar({
     },
     {
       id: "copilot",
-      label: "Trợ lý ảo AI",
+      label: "Trợ Lý Cố Vấn AI",
       icon: YtBotIcon,
       onClick: onOpenCopilot,
       isActive: false,
