@@ -142,6 +142,14 @@ async def create_run(
     except Exception as e:
         pass
 
+    # Tự động phân tích Pandas & sinh Kế hoạch AI Cleansing Plan
+    try:
+        from BE.cleansing import analyze_and_cleanse_dataframe
+        global latest_cleansing_cache
+        latest_cleansing_cache = analyze_and_cleanse_dataframe(content, filename)
+    except Exception as e:
+        pass
+
     return run_info
 
 
@@ -314,6 +322,32 @@ async def copilot_load_dataset(file: UploadFile = File(...)):
         return result
     except Exception as e:
         raise HTTPException(400, f"Không thể nạp tệp vào DuckDB: {str(e)}")
+
+
+latest_cleansing_cache: dict[str, Any] = {}
+
+
+@app.post("/api/cleansing/analyze", tags=["Chuẩn hoá dữ liệu & AI Cleansing"])
+async def cleansing_analyze(file: UploadFile = File(...)):
+    """Phân tích dữ liệu bằng pandas và sinh Kế hoạch Chuẩn hoá Tự động (AI Cleansing Plan) qua Gemini API."""
+    if not file.filename:
+        raise HTTPException(400, "Vui lòng chọn tệp.")
+    content = await file.read()
+    filename = Path(file.filename).name
+    try:
+        from BE.cleansing import analyze_and_cleanse_dataframe
+        result = analyze_and_cleanse_dataframe(content, filename)
+        global latest_cleansing_cache
+        latest_cleansing_cache = result
+        return result
+    except Exception as e:
+        raise HTTPException(400, f"Lỗi tiền xử lý dữ liệu: {str(e)}")
+
+
+@app.get("/api/cleansing/latest", tags=["Chuẩn hoá dữ liệu & AI Cleansing"])
+def get_latest_cleansing():
+    """Lấy kết quả chuẩn hoá và kế hoạch AI mới nhất."""
+    return latest_cleansing_cache or {"status": "empty"}
 
 
 # Phục vụ favicon trực tiếp, tránh lỗi 404 trên trình duyệt

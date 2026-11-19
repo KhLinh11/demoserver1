@@ -64,6 +64,7 @@ export default function Home() {
   const [, setHitl2Approved] = useState<boolean>(false);
   const [isExecutiveModalOpen, setIsExecutiveModalOpen] = useState<boolean>(false);
   const [isFullDatasetModalOpen, setIsFullDatasetModalOpen] = useState<boolean>(false);
+  const [cleansingPlanData, setCleansingPlanData] = useState<any>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -156,7 +157,23 @@ export default function Home() {
       setTotalRawRows(res.totalRawRows);
       setIsSampled(res.isSampled);
 
-      if (fileObj) setRawFile(fileObj);
+      if (fileObj) {
+        setRawFile(fileObj);
+        // Tự động phân tích Pandas và sinh AI Cleansing Plan qua Gemini
+        const fd = new FormData();
+        fd.append("file", fileObj);
+        fetch("/api/cleansing/analyze", {
+          method: "POST",
+          body: fd,
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === "success") {
+              setCleansingPlanData(data);
+            }
+          })
+          .catch((err) => console.warn("Lỗi phân tích cleansing:", err));
+      }
 
       // If backend is online, sync in background
       if (backendOnline) {
@@ -357,6 +374,7 @@ export default function Home() {
               onApproveHitl1={() => setHitl1Approved(true)}
               onOpenFullDataset={() => setIsFullDatasetModalOpen(true)}
               onProceedToStep3={() => setCurrentStep(3)}
+              cleansingPlanData={cleansingPlanData}
             />
           )}
 
