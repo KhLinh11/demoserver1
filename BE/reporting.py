@@ -2,6 +2,7 @@
 
 import io
 from pathlib import Path
+from typing import Optional, Dict, Any, List
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -489,7 +490,7 @@ def generate_pdf_report(run_info: RunInfo, pnl_summary: PnLSummary) -> bytes:
     return buffer.getvalue()
 
 
-def generate_step5_executive_pdf(step5_data: dict) -> bytes:
+def generate_step5_executive_pdf(step5_data: dict, company_name: Optional[str] = None) -> bytes:
     """Tạo báo cáo điều hành Bước 5 toàn diện chuẩn A4 sắc nét bằng ReportLab, nhúng 4 biểu đồ và P&L."""
     setup_pdf_fonts()
     buffer = io.BytesIO()
@@ -522,9 +523,10 @@ def generate_step5_executive_pdf(step5_data: dict) -> bytes:
     # TRANG 1: HEADER BANNER + 4 KPI CARDS + BIỂU ĐỒ 1 (BAR CHART)
     # =========================================================================
     dataset_title = step5_data.get("dataset_title", "Báo Cáo Tổng Kết & Phân Tích Điều Hành Ban Giám Đốc")
+    company_display = company_name.strip() if company_name and company_name.strip() else "Công ty Cổ phần Gia dụng Gia Hòa"
     header_data = [
         [
-            Paragraph("<b>VITARA GROWTH AUDITOR</b><br/><font size=7 color='#5C5570'>Hệ Thống Kiểm Toán Dòng Tiền & Quản Trị Rủi Ro Đa Kênh</font>", body_style),
+            Paragraph(f"<b>VITARA GROWTH AUDITOR</b><br/><font size=8.5 color='#4D2678'><b>{company_display}</b></font><br/><font size=7 color='#5C5570'>Hệ Thống Kiểm Toán Dòng Tiền &amp; Quản Trị Rủi Ro Đa Kênh</font>", body_style),
             Paragraph(f"<b>BÁO CÁO ĐIỀU HÀNH BƯỚC 5</b><br/><font size=7 color='#079DD9'>Dữ liệu thực tế: {dataset_title}</font>", get_style("HeadR", size=9, leading=12, color=colors.HexColor("#8F60BF"), bold=True)),
         ]
     ]
@@ -713,7 +715,7 @@ def generate_step5_executive_pdf(step5_data: dict) -> bytes:
     # =========================================================================
     # TRANG 4: BẢNG SỔ CÁI P&L + LỘ TRÌNH 30-60-90 + CHỮ KÝ ĐIỆN TỬ HITL-2
     # =========================================================================
-    elements.append(Paragraph("<b>IV. SỔ CÁI QUẢN TRỊ P&L, LỘ TRÌNH & PHÊ DUYỆT ĐIỀU HÀNH</b>", h2_style))
+    elements.append(Paragraph("<b>IV. SỔ CÁI QUẢN TRỊ P&amp;L, LỘ TRÌNH &amp; PHÊ DUYỆT ĐIỀU HÀNH</b>", h2_style))
     elements.append(Spacer(1, 6))
 
     # Bảng P&L

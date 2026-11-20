@@ -153,26 +153,18 @@ export function Step5PnL({
             <i className={`fa-solid fa-rotate text-[#079DD9] ${isRefreshingStep5 ? "fa-spin" : ""}`} />
             <span>AI Phân Tích Lại Bước 5</span>
           </button>
-          {onDownloadServerPdf && (
-            <button
-              onClick={onDownloadServerPdf}
-              className="px-3.5 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
-              title="Tải tệp PDF chuẩn in A4 vector sắc nét từ máy chủ, nhúng đủ 4 biểu đồ và bảng P&L không lỗi trang"
-            >
-              <i className="fa-solid fa-file-pdf text-[#99D9F2]" />
-              <span>Tải PDF Chuẩn In</span>
-            </button>
-          )}
           <button
+            type="button"
             onClick={onDownloadPdf}
-            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF8FC] border border-[#ECD8F2] text-[#5C5570] hover:text-[#8F60BF] text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
-            title="Xuất toàn trang web hiện tại thành tệp PDF"
+            className="px-3.5 py-1.5 rounded-xl bg-[#8F60BF] hover:bg-[#7b4fa8] text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+            title="Tải báo cáo điều hành toàn diện chuẩn in A4 vector sắc nét từ máy chủ, nhúng đủ 4 biểu đồ và bảng P&L không lỗi trang"
           >
-            <i className="fa-solid fa-download" />
-            <span>Xuất Toàn Trang</span>
+            <i className="fa-solid fa-file-pdf text-[#99D9F2]" />
+            <span>Tải Báo Cáo PDF (A4)</span>
           </button>
           {onExportCsv && (
             <button
+              type="button"
               onClick={onExportCsv}
               className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF8FC] border border-[#ECD8F2] text-[#5C5570] hover:text-[#079DD9] text-xs font-bold transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
               title="Xuất dữ liệu sổ cái kiểm toán thành tệp CSV"

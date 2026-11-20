@@ -397,57 +397,18 @@ export default function Home() {
   const handleDownloadServerPdf = () => {
     const safeCompany = companyName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, "_");
     const today = new Date().toISOString().slice(0, 10);
-    const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_Chuan_In_${safeCompany}_${today}.pdf`;
+    const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_${safeCompany}_${today}.pdf`;
 
     const a = document.createElement("a");
-    a.href = "/api/step5/export/pdf";
+    a.href = `/api/step5/export/pdf?company_name=${encodeURIComponent(companyName || "")}`;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  const handleDownloadPdf = async () => {
-    try {
-      const html2pdf = (window as any).html2pdf;
-      if (!html2pdf) {
-        handleDownloadServerPdf();
-        return;
-      }
-
-      const targetElement = document.getElementById("step-panel-5");
-      if (!targetElement) {
-        handleDownloadServerPdf();
-        return;
-      }
-
-      const safeCompany = companyName.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+/g, "_");
-      const today = new Date().toISOString().slice(0, 10);
-      const filename = `Bao_Cao_Dieu_Hanh_Buoc_5_${safeCompany}_${today}.pdf`;
-
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: "#FFFFFF",
-          windowWidth: 800,
-          scrollX: 0,
-          scrollY: 0,
-        },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] },
-      };
-
-      await html2pdf().set(opt).from(targetElement).save();
-      alert(`✅ Xuất Báo Cáo PDF Toàn Trang Thành Công!\n\nĐã tải xuống: ${filename}`);
-    } catch (err: any) {
-      console.error("Lỗi xuất PDF Bước 5:", err);
-      handleDownloadServerPdf();
-    }
+  const handleDownloadPdf = () => {
+    handleDownloadServerPdf();
   };
 
   const handleExportCSV = async () => {

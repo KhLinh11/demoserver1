@@ -588,35 +588,41 @@ def get_latest_executive():
 
 
 @app.api_route("/api/step5/export/pdf", methods=["GET", "HEAD"], tags=["Tổng kết & Báo cáo điều hành Bước 5"])
-def export_step5_pdf():
+def export_step5_pdf(company_name: Optional[str] = Query(None)):
     """Tải báo cáo điều hành toàn diện Bước 5 dạng PDF chuẩn A4, nhúng đủ 4 biểu đồ và bảng P&L."""
     global latest_step5_cache, latest_diagnosis_cache, latest_step4_cache, latest_cleansing_cache
     from BE.reporting import generate_step5_executive_pdf
     from BE.step5_report import analyze_step5_report
+    import re
+    from datetime import datetime
 
     if not latest_step5_cache or "charts" not in latest_step5_cache or not latest_step5_cache.get("charts"):
-        upload_dir = REPO_DIR / "BE" / "runtime" / "uploads"
-        csv_files = sorted(upload_dir.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True) if upload_dir.is_dir() else []
-        if csv_files:
-            try:
-                df = pd.read_csv(csv_files[0], encoding="utf-8-sig")
-            except Exception:
-                df = pd.read_csv(csv_files[0], encoding="latin1")
-            fname = "_".join(csv_files[0].name.split("_")[1:]) if "_" in csv_files[0].name else csv_files[0].name
-        elif (REPO_DIR / "sample_data.csv").exists():
-            df = pd.read_csv(REPO_DIR / "sample_data.csv")
-            fname = "sample_data.csv"
+        df, fname = _resolve_current_dataframe()
+        if df is not None and len(df) > 0:
+            latest_step5_cache = analyze_step5_report(latest_diagnosis_cache or {}, latest_step4_cache or {}, df, fname)
         else:
             raise HTTPException(400, "Chưa có dữ liệu nào để xuất PDF.")
 
-        latest_step5_cache = analyze_step5_report(latest_diagnosis_cache or {}, latest_step4_cache or {}, df, fname)
+    pdf_bytes = generate_step5_executive_pdf(latest_step5_cache, company_name=company_name)
 
-    pdf_bytes = generate_step5_executive_pdf(latest_step5_cache)
-    safe_filename = "Bao_Cao_Dieu_Hanh_Buoc_5_Chuan_In.pdf"
+    import urllib.parse
+    safe_filename = "Bao_Cao_Dieu_Hanh_Buoc_5.pdf"
+    if company_name and company_name.strip():
+        safe_cname = re.sub(r'[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]+', '_', company_name.strip())
+        today = datetime.now().strftime("%Y-%m-%d")
+        safe_filename = f"Bao_Cao_Dieu_Hanh_Buoc_5_{safe_cname}_{today}.pdf"
+    else:
+        safe_filename = "Bao_Cao_Dieu_Hanh_Buoc_5_Chuan_In.pdf"
+
+    ascii_fallback = re.sub(r'[^a-zA-Z0-9_.\-]', '_', safe_filename)
+    encoded_utf8_filename = urllib.parse.quote(safe_filename)
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{encoded_utf8_filename}'
+        }
     )
 
 
