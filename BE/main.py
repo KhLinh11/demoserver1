@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 
 import pandas as pd
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -62,6 +62,43 @@ def health_check():
         "storage": "sqlite_wal",
         "pdf_engine": "reportlab_unicode",
     }
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/auth/login", tags=["Xác thực Quản trị"])
+def auth_login(req: LoginRequest):
+    """Đăng nhập tài khoản Quản trị viên duy nhất."""
+    from BE.auth import authenticate_admin
+    session = authenticate_admin(req.username, req.password)
+    if not session:
+        raise HTTPException(401, "Tên đăng nhập hoặc mật khẩu quản trị không chính xác.")
+    return {"status": "success", **session}
+
+
+@app.get("/api/auth/me", tags=["Xác thực Quản trị"])
+def auth_me(request: Request, token: Optional[str] = None):
+    """Kiểm tra trạng thái phiên đăng nhập của Admin."""
+    from BE.auth import verify_session
+    auth_header = request.headers.get("Authorization", "")
+    t = token or (auth_header.replace("Bearer ", "").strip() if auth_header.startswith("Bearer ") else None)
+    session = verify_session(t)
+    if not session:
+        return {"authenticated": False}
+    return {"authenticated": True, "user": session}
+
+
+@app.post("/api/auth/logout", tags=["Xác thực Quản trị"])
+def auth_logout(request: Request, token: Optional[str] = None):
+    """Đăng xuất tài khoản quản trị viên."""
+    from BE.auth import invalidate_session
+    auth_header = request.headers.get("Authorization", "")
+    t = token or (auth_header.replace("Bearer ", "").strip() if auth_header.startswith("Bearer ") else None)
+    invalidate_session(t)
+    return {"status": "success", "message": "Đã đăng xuất tài khoản quản trị viên."}
 
 
 @app.get("/api/sample-data", tags=["Dữ liệu mẫu"])

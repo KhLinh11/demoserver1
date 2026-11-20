@@ -18,6 +18,7 @@ import {
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { FloatingMascot } from "@/components/assistant/FloatingMascot";
 import { HeroHeader } from "@/components/hero/HeroHeader";
+import { AdminLoginGate } from "@/components/auth/AdminLoginGate";
 import { Step1Upload } from "@/components/steps/Step1Upload";
 import { Step2Cleansing } from "@/components/steps/Step2Cleansing";
 import { Step3Diagnosis } from "@/components/steps/Step3Diagnosis";
@@ -40,6 +41,10 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
+
+  // Authentication State (Single Admin Gate)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [currentAdmin, setCurrentAdmin] = useState<any>(null);
 
   // Business profile
   const [companyName, setCompanyName] = useState<string>("Công ty Cổ phần Gia dụng Gia Hòa");
@@ -177,6 +182,19 @@ export default function Home() {
     });
 
     try {
+      const savedAuth = localStorage.getItem("vitara_admin_auth");
+      if (savedAuth) {
+        const authData = JSON.parse(savedAuth);
+        if (authData && authData.status === "success" && authData.token) {
+          setIsAuthenticated(true);
+          setCurrentAdmin(authData);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse auth data", e);
+    }
+
+    try {
       const raw = localStorage.getItem("vitara_app_state") || localStorage.getItem("vitara_fe_state");
       if (raw) {
         const saved = JSON.parse(raw);
@@ -231,7 +249,7 @@ export default function Home() {
   // Fetch AI analyses when navigating to step
   useEffect(() => {
     if (currentStep === 3) {
-      if (!diagnosisData) fetchDiagnosis();
+      if (!diagnosisData || !diagnosisData.markdown_report) fetchDiagnosis();
       if (!cleansingPlanData) {
         fetch("/api/cleansing/latest")
           .then((r) => r.json())
@@ -434,6 +452,24 @@ export default function Home() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
+  const handleLogout = async () => {
+    try {
+      const savedAuth = localStorage.getItem("vitara_admin_auth");
+      const token = savedAuth ? JSON.parse(savedAuth).token : null;
+      if (token) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch {
+      // Ignored
+    }
+    localStorage.removeItem("vitara_admin_auth");
+    setIsAuthenticated(false);
+    setCurrentAdmin(null);
+  };
+
   const handleResetSession = () => {
     if (backendOnline) {
       fetch("/api/session/reset", { method: "POST" }).catch(() => {});
@@ -463,9 +499,51 @@ export default function Home() {
           backendOnline={backendOnline}
           onStartAudit={() => setActiveView("workflow")}
           onOpenCopilot={() => setIsCopilotOpen(true)}
+          isAuthenticated={isAuthenticated}
+          onLogout={handleLogout}
+          onOpenLogin={() => setActiveView("workflow")}
         />
+      ) : !isAuthenticated ? (
+        /* 2. AUTHENTICATION GATE VIEW (Single Admin Required) */
+        <div className="flex-1 flex flex-col min-h-screen bg-[#FAF8FC]">
+          <header className="px-6 py-3.5 bg-[#FAF6FD] border-b border-[#ECD8F2] flex items-center justify-between z-30 sticky top-0 backdrop-blur-md">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FAF6FD] to-[#ECD8F2] border border-[#BEB6F2] flex items-center justify-center shadow-xs">
+                <i className="fa-solid fa-shield-halved text-sm text-[#8F60BF]" />
+              </div>
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-[#8F60BF] block">
+                  Cổng Xác Thực Quản Trị Hệ Thống
+                </span>
+                <span className="text-[10px] text-[#5C5570] font-medium block">
+                  Đăng nhập tài khoản Admin duy nhất để truy cập luồng kiểm toán
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setActiveView("hero")}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-[#5C5570] hover:text-[#8F60BF] hover:bg-white border border-[#ECD8F2] bg-white transition cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+              >
+                <i className="fa-solid fa-arrow-left text-[#079DD9]" />
+                <span>Về Trang Bìa</span>
+              </button>
+            </div>
+          </header>
+
+          <main className="flex-1 flex items-center justify-center p-4">
+            <AdminLoginGate
+              onLoginSuccess={(adminUser) => {
+                setIsAuthenticated(true);
+                setCurrentAdmin(adminUser);
+              }}
+              onBackToHero={() => setActiveView("hero")}
+            />
+          </main>
+        </div>
       ) : (
-        /* 2. WORKFLOW VIEW */
+        /* 3. WORKFLOW VIEW (Authenticated Admin Only) */
         <div className="flex-1 flex flex-col min-h-screen">
           {/* Top Bar matching index.html */}
           <header className="px-6 py-3.5 bg-[#FAF6FD] border-b border-[#ECD8F2] flex items-center justify-between z-30 sticky top-0 backdrop-blur-md">
@@ -490,6 +568,24 @@ export default function Home() {
             </div>
 
             <div className="flex items-center space-x-2">
+              {/* Admin User Chip */}
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#FAF6FD] border border-[#ECD8F2] shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-[#8F60BF]">
+                  Admin: {currentAdmin?.user?.username || currentAdmin?.user?.email || "admin"}
+                </span>
+              </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                title="Đăng xuất khỏi phiên quản trị"
+              >
+                <i className="fa-solid fa-right-from-bracket" />
+                <span className="hidden sm:inline">Đăng Xuất</span>
+              </button>
+
               <button
                 onClick={() => setIsCopilotOpen(!isCopilotOpen)}
                 className="px-3 py-1.5 rounded-lg text-xs font-bold text-[#8F60BF] hover:text-white hover:bg-[#8F60BF] bg-white border border-[#BEB6F2] transition flex items-center space-x-1.5 shadow-2xs cursor-pointer"

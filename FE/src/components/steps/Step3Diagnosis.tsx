@@ -154,7 +154,9 @@ function parseMarkdown(md: string) {
     if (!line) return;
 
     // 2. Major 4 Executive Sections (1. / 2. / 3. / 4. or ## 1.)
-    const sectionMatch = line.match(/^(?:##?\s*)?(?:[🎯📊🚨💡🔍📈]\s*)?([1-4])\.\s*(.*)/);
+    const sectionMatch =
+      line.match(/^(?:##?\s*)?(?:[🎯📊🚨💡🔍📈]\s*)?([1-4])\.\s*(.*)/u) ||
+      line.match(/^(?:##?\s*)?([1-4])\.\s*(.*)/);
     if (sectionMatch) {
       const sNum = sectionMatch[1];
       const sTitle = sectionMatch[2].replace(/\*\*(.*?)\*\*/g, "$1").trim();
@@ -311,6 +313,12 @@ export function Step3Diagnosis({
 }: Step3DiagnosisProps) {
   const [activeTab, setActiveTab] = useState<"ai" | "table">("ai");
   const [tableSearch, setTableSearch] = useState<string>("");
+
+  React.useEffect(() => {
+    if ((!diagnosisData || !diagnosisData.markdown_report) && onRefreshDiagnosis && !isRefreshing) {
+      onRefreshDiagnosis();
+    }
+  }, [diagnosisData, onRefreshDiagnosis, isRefreshing]);
 
   const sampleRows = cleansingPlanData?.cleaned_sample || [];
   const filteredSampleRows = tableSearch.trim()

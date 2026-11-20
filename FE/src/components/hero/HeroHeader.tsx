@@ -6,9 +6,19 @@ interface HeroHeaderProps {
   backendOnline: boolean;
   onStartAudit: () => void;
   onOpenCopilot: () => void;
+  isAuthenticated?: boolean;
+  onLogout?: () => void;
+  onOpenLogin?: () => void;
 }
 
-export function HeroHeader({ backendOnline, onStartAudit, onOpenCopilot }: HeroHeaderProps) {
+export function HeroHeader({
+  backendOnline,
+  onStartAudit,
+  onOpenCopilot,
+  isAuthenticated = false,
+  onLogout,
+  onOpenLogin,
+}: HeroHeaderProps) {
   return (
     <section
       id="view-hero"
@@ -56,11 +66,41 @@ export function HeroHeader({ backendOnline, onStartAudit, onOpenCopilot }: HeroH
 
           <button
             onClick={onOpenCopilot}
-            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition flex items-center space-x-1.5 backdrop-blur-md"
+            className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition flex items-center space-x-1.5 backdrop-blur-md cursor-pointer"
           >
             <i className="fa-solid fa-wand-magic-sparkles text-[#99D9F2]" />
             <span>AI Copilot</span>
           </button>
+
+          {isAuthenticated ? (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={onStartAudit}
+                className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 border border-emerald-300 text-white text-xs font-bold transition flex items-center space-x-1.5 backdrop-blur-md cursor-pointer"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <i className="fa-solid fa-user-shield text-[#99D9F2]" />
+                <span>Admin</span>
+              </button>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-rose-500/30 border border-white/20 text-[#ECD8F2] hover:text-white text-xs font-semibold transition cursor-pointer"
+                  title="Đăng xuất"
+                >
+                  <i className="fa-solid fa-arrow-right-from-bracket" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={onOpenLogin || onStartAudit}
+              className="px-4 py-2 rounded-xl bg-white text-[#4D2678] hover:bg-[#FAF8FC] font-extrabold text-xs transition flex items-center space-x-1.5 shadow-md cursor-pointer"
+            >
+              <i className="fa-solid fa-lock text-[#8F60BF]" />
+              <span>Đăng Nhập Quản Trị</span>
+            </button>
+          )}
         </div>
       </header>
 
