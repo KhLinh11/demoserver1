@@ -8,11 +8,12 @@ interface AdminLoginGateProps {
 }
 
 export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateProps) {
-  const [username, setUsername] = useState<string>("admin");
-  const [password, setPassword] = useState<string>("admin123");
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [isLocked, setIsLocked] = useState<boolean>(false);
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -34,10 +35,14 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
       const data = await res.json();
 
       if (!res.ok || data.status !== "success") {
+        if (res.status === 429) {
+          setIsLocked(true);
+        }
         setErrorMsg(data.detail || "Tên đăng nhập hoặc mật khẩu quản trị không chính xác.");
         return;
       }
 
+      setIsLocked(false);
       // Lưu token vào localStorage
       localStorage.setItem("vitara_admin_auth", JSON.stringify(data));
       onLoginSuccess(data);
@@ -46,12 +51,6 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleFillDemo = () => {
-    setUsername("admin");
-    setPassword("admin123");
-    setErrorMsg("");
   };
 
   return (
@@ -64,7 +63,7 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
         {/* Security Shield Header */}
         <div className="text-center space-y-2 relative">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FAF6FD] to-[#ECD8F2] border border-[#BEB6F2] mx-auto flex items-center justify-center shadow-sm">
-            <i className="fa-solid fa-shield-halved text-2xl text-[#8F60BF]" />
+            <i className={`fa-solid ${isLocked ? "fa-lock text-rose-500" : "fa-shield-halved text-[#8F60BF]"} text-2xl transition-colors`} />
           </div>
           <span className="inline-block px-3 py-1 rounded-full text-[11px] font-black tracking-wider uppercase bg-[#FAF6FD] text-[#8F60BF] border border-[#ECD8F2]">
             Cổng Bảo Mật Quản Trị (Admin Gate)
@@ -73,14 +72,18 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
             Xác Thực Quản Trị Viên
           </h2>
           <p className="text-xs text-[#5C5570] leading-relaxed">
-            Hệ thống yêu cầu đăng nhập tài khoản Quản trị viên để truy cập luồng kiểm toán và ký duyệt P&amp;L.
+            Hệ thống yêu cầu xác thực tài khoản Quản trị viên để truy cập luồng kiểm toán và ký duyệt P&amp;L.
           </p>
         </div>
 
         {/* Error Alert Banner */}
         {errorMsg && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2.5 animate-shake">
-            <i className="fa-solid fa-circle-exclamation text-rose-500 shrink-0 text-sm" />
+          <div className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center space-x-2.5 animate-shake ${
+            isLocked
+              ? "bg-rose-100 border-rose-300 text-rose-800"
+              : "bg-rose-50 border-rose-200 text-rose-700"
+          }`}>
+            <i className={`fa-solid ${isLocked ? "fa-triangle-exclamation text-rose-600" : "fa-circle-exclamation text-rose-500"} shrink-0 text-sm`} />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -99,9 +102,10 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Ví dụ: admin hoặc admin@vitara.ai"
+                placeholder="Nhập tên đăng nhập hoặc email..."
                 className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-[#ECD8F2] bg-[#FAF8FC] text-xs font-medium text-[#1E1B2E] focus:outline-none focus:border-[#8F60BF] transition"
                 autoComplete="username"
+                disabled={isLocked}
                 required
               />
             </div>
@@ -119,9 +123,10 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu quản trị..."
+                placeholder="Nhập mật khẩu..."
                 className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-[#ECD8F2] bg-[#FAF8FC] text-xs font-mono text-[#1E1B2E] focus:outline-none focus:border-[#8F60BF] transition"
                 autoComplete="current-password"
+                disabled={isLocked}
                 required
               />
               <button
@@ -135,33 +140,29 @@ export function AdminLoginGate({ onLoginSuccess, onBackToHero }: AdminLoginGateP
             </div>
           </div>
 
-          {/* Quick Demo Credentials Pill */}
-          <div className="p-3 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] flex items-center justify-between text-xs text-[#5C5570]">
-            <div className="flex items-center space-x-2">
-              <i className="fa-solid fa-key text-[#079DD9]" />
-              <span className="text-[11px]">
-                Tài khoản mẫu: <strong>admin</strong> / <strong>admin123</strong>
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="text-[11px] font-bold text-[#8F60BF] hover:underline cursor-pointer"
-            >
-              Tự động điền
-            </button>
+          {/* Security Notice */}
+          <div className="p-3 rounded-2xl bg-[#FAF6FD] border border-[#ECD8F2] flex items-start space-x-2.5 text-xs text-[#5C5570]">
+            <i className="fa-solid fa-shield-halved text-[#8F60BF] mt-0.5 shrink-0" />
+            <span className="text-[11px] leading-relaxed">
+              Cổng kiểm toán được bảo vệ bởi cơ chế chống dò mật khẩu (Brute-force Protection). Thông tin đăng nhập được quản lý bảo mật qua biến môi trường máy chủ.
+            </span>
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isLocked}
             className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#8F60BF] to-[#7b4fa8] hover:from-[#7b4fa8] hover:to-[#6a3f96] text-white text-xs sm:text-sm font-bold transition shadow-md shadow-purple-200/50 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-60"
           >
             {isLoading ? (
               <>
                 <i className="fa-solid fa-circle-notch fa-spin text-sm" />
                 <span>Đang Xác Thực...</span>
+              </>
+            ) : isLocked ? (
+              <>
+                <i className="fa-solid fa-lock text-sm" />
+                <span>Tài Khoản Đang Bị Tạm Khóa</span>
               </>
             ) : (
               <>

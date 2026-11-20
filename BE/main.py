@@ -70,12 +70,17 @@ class LoginRequest(BaseModel):
 
 
 @app.post("/api/auth/login", tags=["Xác thực Quản trị"])
-def auth_login(req: LoginRequest):
-    """Đăng nhập tài khoản Quản trị viên duy nhất."""
+def auth_login(req: LoginRequest, request: Request):
+    """Đăng nhập tài khoản Quản trị viên duy nhất kèm cơ chế chống dò mật khẩu (Brute-force Protection)."""
     from BE.auth import authenticate_admin
-    session = authenticate_admin(req.username, req.password)
+    client_ip = (
+        request.headers.get("cf-connecting-ip")
+        or (request.headers.get("x-forwarded-for", "").split(",")[0].strip())
+        or (request.client.host if request.client else "127.0.0.1")
+    )
+    session, err_msg, status_code = authenticate_admin(req.username, req.password, client_ip=client_ip)
     if not session:
-        raise HTTPException(401, "Tên đăng nhập hoặc mật khẩu quản trị không chính xác.")
+        raise HTTPException(status_code=status_code, detail=err_msg or "Xác thực không thành công.")
     return {"status": "success", **session}
 
 
